@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Status Update - Jenny's Pudding</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .order { border: 1px solid #ccc; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        button { margin: 5px; padding: 8px 15px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Test Order Status Update</h1>
+    
+    <div>
+        <h3>Step 1: Load Orders</h3>
+        <button onclick="loadOrders()">Load All Orders</button>
+        <div id="orders"></div>
+    </div>
+
+    <div>
+        <h3>Step 2: Update Status</h3>
+        <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., JP-123456)" style="width: 200px;">
+        <button onclick="updateToPaymentUploaded()">Update to payment_uploaded</button>
+        <div id="updateResult"></div>
+    </div>
+
+    <script>
+        // Get these from your .env.local file
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your actual URL
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your actual key
+
+        let supabase;
+
+        function initSupabase() {
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+                document.getElementById('orders').innerHTML = `
+                    <div style="color: red; padding: 20px; border: 2px solid red;">
+                        <h3>⚠️ Supabase Not Configured</h3>
+                        <p>Please edit this HTML file and add your Supabase credentials</p>
+                    </div>
+                `;
+                return false;
+            }
+
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            return true;
+        }
+
+        async function loadOrders() {
+            if (!initSupabase()) return;
+
+            try {
+                const { data: orders, error } = await supabase
+                    .from('orders')
+                    .select('id, order_id, status, customer_name, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (error) throw error;
+
+                let html = '<h4>Recent Orders:</h4>';
+                orders.forEach(order => {
+                    html += `
+                        <div class="order">
+                            <strong>${order.order_id}</strong> - Status: <strong>${order.status}</strong><br>
+                            Customer: ${order.customer_name}<br>
+                            Created: ${new Date(order.created_at).toLocaleString()}<br>
+                            <button onclick="updateOrderStatus('${order.order_id}', 'payment_uploaded')">
+                                Set to payment_uploaded
+                            </button>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('orders').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('orders').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function updateToPaymentUploaded() {
+            const orderId = document.getElementById('orderIdInput').value.trim();
+            if (!orderId) {
+                document.getElementById('updateResult').innerHTML = '<div class="error">Please enter an Order ID</div>';
+                return;
+            }
+
+            await updateOrderStatus(orderId, 'payment_uploaded');
+        }
+
+        async function updateOrderStatus(orderId, status) {
+            if (!initSupabase()) return;
+
+            try {
+                console.log(`Updating order ${orderId} to status ${status}`);
+
+                const { data, error } = await supabase
+                    .from('orders')
+                    .update({ 
+                        status: status,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('order_id', orderId)
+                    .select();
+
+                if (error) throw error;
+
+                console.log('Update result:', data);
+
+                if (data && data.length > 0) {
+                    document.getElementById('updateResult').innerHTML = 
+                        `<div class="success">✅ Successfully updated ${orderId} to ${status}</div>`;
+                    loadOrders(); // Refresh the list
+                } else {
+                    document.getElementById('updateResult').innerHTML = 
+                        `<div class="error">❌ No order found with ID ${orderId}</div>`;
+                }
+            } catch (error) {
+                console.error('Error updating order status:', error);
+                document.getElementById('updateResult').innerHTML = 
+                    `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+                console.log('Supabase configured, ready to test status updates');
+                loadOrders();
+            }
+        };
+    </script>
+</body>
+</html> 
