@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: "Jenny's Pudding - Delicious Cakes & Puddings",
   description: "Premium cakes, puddings, and desserts delivered fresh to your door",
   manifest: "/manifest.json",
-  themeColor: "#f97316",
+  themeColor: "#d63384",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -50,7 +50,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Jenny's Pudding" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
-        <meta name="msapplication-TileColor" content="#f97316" />
+        <meta name="msapplication-TileColor" content="#d63384" />
         
         {/* Apple Splash Screens */}
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-2048-2732.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
