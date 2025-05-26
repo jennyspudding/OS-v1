@@ -5,14 +5,27 @@ import { useState, useEffect } from 'react';
 export default function IOSInstallInstructions() {
   const [isIOS, setIsIOS] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
     // Detect iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator as any).standalone;
     
-    setIsIOS(iOS && !isInStandaloneMode);
+    // Check if user has previously dismissed the prompt
+    const dismissed = localStorage.getItem('iosInstallPromptDismissed');
+    
+    setIsIOS(iOS && !isInStandaloneMode && !dismissed);
+    setIsDismissed(!!dismissed);
   }, []);
+
+  const handleDismiss = () => {
+    setShowInstructions(false);
+    setIsDismissed(true);
+    setIsIOS(false);
+    // Remember user's choice to not show again
+    localStorage.setItem('iosInstallPromptDismissed', 'true');
+  };
 
   if (!isIOS) return null;
 
@@ -100,13 +113,13 @@ export default function IOSInstallInstructions() {
 
             <div className="flex space-x-3">
               <button
-                onClick={() => setShowInstructions(false)}
+                onClick={handleDismiss}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Maybe Later
               </button>
               <button
-                onClick={() => setShowInstructions(false)}
+                onClick={handleDismiss}
                 className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700"
               >
                 Got It!

@@ -421,7 +421,7 @@ export default function SimpleGoogleMap({
           }
 
           map.setCenter(position);
-          map.setZoom(17);
+          // Don't auto-zoom to maintain current zoom level
           if (marker) {
             marker.position = position;
           }
@@ -487,6 +487,15 @@ export default function SimpleGoogleMap({
               placeholder="Cari alamat lengkap Anda..."
               className="flex-1 px-3 py-2 text-sm focus:outline-none"
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              onFocus={(e) => {
+                // Prevent mobile zoom on input focus
+                e.target.style.fontSize = '16px';
+              }}
+              onBlur={(e) => {
+                // Reset font size after blur
+                e.target.style.fontSize = '';
+              }}
+              style={{ fontSize: '16px' }}
             />
             <button
               onClick={handleSearch}
