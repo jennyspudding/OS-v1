@@ -28,8 +28,10 @@ export interface LalamoveCoordinate {
 }
 
 export interface LalamoveStop {
-  lat: number;
-  lng: number;
+  coordinates: {
+    lat: string;
+    lng: string;
+  };
   address: string;
 }
 
@@ -46,14 +48,12 @@ export interface LalamoveItem {
 }
 
 export interface LalamoveQuotationRequest {
-  market?: string;
+  scheduleAt?: string;
   serviceType: 'MOTORCYCLE' | 'CAR' | 'VAN' | 'TRUCK';
   specialRequests?: string[];
   language?: string;
   stops: LalamoveStop[];
-  item?: LalamoveItem;
   isRouteOptimized?: boolean;
-  scheduleAt?: string; // Added scheduleAt field
 }
 
 export interface LalamovePriceBreakdown {
@@ -138,8 +138,8 @@ export async function getLalamoveQuotation(
   try {
     // Validate coordinates before making API call
     for (const stop of request.stops) {
-      const lat = parseFloat(stop.lat.toString());
-      const lng = parseFloat(stop.lng.toString());
+      const lat = parseFloat(stop.coordinates.lat);
+      const lng = parseFloat(stop.coordinates.lng);
       
       if (!validateIndonesianCoordinates(lat, lng)) {
         throw new Error(`Invalid coordinates for Indonesia: ${lat}, ${lng}. Coordinates must be within Indonesia bounds.`);
@@ -160,8 +160,7 @@ export async function getLalamoveQuotation(
       region: LALAMOVE_CONFIG.region,
       requestBody: request,
       stops: request.stops.map(stop => ({
-        lat: stop.lat,
-        lng: stop.lng,
+        coordinates: stop.coordinates,
         address: stop.address,
       }))
     });
@@ -219,35 +218,28 @@ export function createDeliveryQuotationRequest(
   isRequestedAt?: string
 ): LalamoveQuotationRequest {
   const request: LalamoveQuotationRequest = {
-    market: "ID JKT",
+    scheduleAt: isRequestedAt || new Date().toISOString(),
     serviceType,
+    specialRequests: [],
     language: "id_ID",
     stops: [
       {
-        lat: pickupCoordinates.lat,
-        lng: pickupCoordinates.lng,
+        coordinates: {
+          lat: pickupCoordinates.lat.toString(),
+          lng: pickupCoordinates.lng.toString()
+        },
         address: pickupAddress,
       },
       {
-        lat: deliveryCoordinates.lat,
-        lng: deliveryCoordinates.lng,
+        coordinates: {
+          lat: deliveryCoordinates.lat.toString(),
+          lng: deliveryCoordinates.lng.toString()
+        },
         address: deliveryAddress,
       }
     ],
-    item: {
-      quantity: "1",
-      weight: "LESS_THAN_3KG",
-      categories: ["FOOD_DELIVERY"],
-      handlingInstructions: ["KEEP_UPRIGHT"]
-    },
-    specialRequests: ["FRAGILE"],
     isRouteOptimized: true
   };
-
-  // Add scheduleAt if provided (must be in UTC ISO 8601 format)
-  if (isRequestedAt) {
-    request.scheduleAt = isRequestedAt;
-  }
 
   return request;
 }
