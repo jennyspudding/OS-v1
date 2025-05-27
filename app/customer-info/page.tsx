@@ -4,11 +4,34 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import SimpleGoogleMap from "@/components/SimpleGoogleMap";
 import { useCart } from "@/components/CartContext";
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+function validateCoupon(code: string, cartTotal: number, coupons: any[]) {
+  const now = new Date();
+  const coupon = coupons.find(c => c.code.toUpperCase() === code.toUpperCase());
+  if (!coupon) return { valid: false, reason: "Kode tidak ditemukan" };
+  if (now < new Date(coupon.start_time) || now > new Date(coupon.end_time)) return { valid: false, reason: "Kode tidak berlaku" };
+  if (cartTotal < (coupon.min_purchase || 0)) return { valid: false, reason: `Minimum pembelian Rp${(coupon.min_purchase || 0).toLocaleString('id-ID')}` };
+  
+  let discount = 0;
+  if (coupon.type === "percent") {
+    discount = Math.floor(cartTotal * (coupon.value / 100));
+    if (coupon.capped) discount = Math.min(discount, coupon.capped);
+  } else {
+    discount = coupon.value;
+  }
+  return { valid: true, discount, coupon };
+}
 
 function CustomerInfoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { cart } = useCart();
+  const { cart, applyPromoCode, removePromoCode } = useCart();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -33,7 +56,10 @@ function CustomerInfoContent() {
   const [vehicleType, setVehicleType] = useState<'MOTORCYCLE' | 'CAR'>('MOTORCYCLE');
   const [requestedDateTime, setRequestedDateTime] = useState('');
   const [alamatLengkap, setAlamatLengkap] = useState('');
-  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [promoSuccess, setPromoSuccess] = useState("");
+  const [coupons, setCoupons] = useState<any[]>([]);
 
   // Calculate cart total
   const cartTotal = cart.items.reduce((sum, item) => {
@@ -536,7 +562,6 @@ function CustomerInfoContent() {
   // Function to save complete order data before submission
   const saveCompleteOrderData = () => {
     if (typeof window === 'undefined') return null;
-    
     try {
       const completeOrderData = {
         formData,
@@ -552,15 +577,15 @@ function CustomerInfoContent() {
         cart: cart,
         cartTotal: cartTotal,
         deliveryTotal: deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0,
-        grandTotal: cartTotal + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0),
+        promoCode: cart.promoCode,
+        discount: cart.discount,
+        grandTotal: cartTotal - (cart.discount || 0) + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0),
         timestamp: new Date().toISOString(),
         status: 'ready_for_payment'
       };
-
       // Save to both localStorage and sessionStorage
       localStorage.setItem('completeOrderData', JSON.stringify(completeOrderData));
       sessionStorage.setItem('currentOrder', JSON.stringify(completeOrderData));
-      
       console.log('Complete order data saved:', completeOrderData);
       return completeOrderData;
     } catch (error) {
@@ -601,6 +626,53 @@ function CustomerInfoContent() {
     } else {
       alert('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
     }
+  };
+
+  // Fetch coupons from Supabase
+  useEffect(() => {
+    async function fetchCoupons() {
+      try {
+        // Fetch all promos first for debugging
+        const { data, error } = await supabase
+          .from('promos')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        console.log('All promos from DB:', data);
+        
+        // Filter active promos in JavaScript
+        const now = new Date();
+        const activePromos = data?.filter(promo => {
+          const startTime = new Date(promo.start_time);
+          const endTime = new Date(promo.end_time);
+          const isActive = startTime <= now && now <= endTime;
+          console.log(`Promo ${promo.code}: start=${startTime}, end=${endTime}, now=${now}, active=${isActive}`);
+          return isActive;
+        }) || [];
+        
+        console.log('Active promos:', activePromos);
+        setCoupons(activePromos);
+      } catch (error) {
+        console.error('Error fetching coupons:', error);
+      }
+    }
+    fetchCoupons();
+  }, []);
+
+  const handleApplyPromo = () => {
+    const result = validateCoupon(promoInput, cartTotal, coupons);
+    if (!result.valid) {
+      setPromoError(result.reason || "");
+      setPromoSuccess("");
+      removePromoCode();
+      return;
+    }
+    if (result.coupon) {
+      applyPromoCode(result.coupon.code, result.discount ?? 0);
+      setPromoSuccess(`Kode ${result.coupon.code} berhasil diterapkan!`);
+    }
+    setPromoError("");
   };
 
   return (
@@ -757,237 +829,194 @@ function CustomerInfoContent() {
             />
           </div>
 
-          {/* Delivery Quotation Section */}
-          {(isLoadingQuotation || deliveryQuotation || quotationError) && (
-            <div className="px-4 pb-4 mb-8">
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-semibold mb-3 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Informasi Pengiriman
-                </h3>
-                
-                {/* Delivery DateTime Selection */}
-                <div className="mb-4">
-                  <label className="block text-sm text-gray-600 mb-2">Waktu Pengiriman <span className="text-red-500">*</span></label>
-                  <input
-                    type="datetime-local"
-                    value={requestedDateTime}
-                                      onChange={(e) => {
-                    const selectedDateTime = new Date(e.target.value);
-                    const selectedHour = selectedDateTime.getHours();
-                    
-                    // Check if time is between 10:00 and 16:00
-                    if (selectedHour >= 10 && selectedHour <= 16) {
-                      setRequestedDateTime(e.target.value);
-                    } else {
-                      // Show custom popup warning
-                      setShowTimeWarning(true);
-                      setRequestedDateTime('');
-                    }
-                  }}
-                    min={new Date().toISOString().slice(0, 16)}
-                    required
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Pilih waktu pengiriman yang diinginkan (10:00 - 16:00)</p>
-                </div>
-                
-                {/* Vehicle Type Selection */}
-                <div className="mb-4">
-                  <label className="block text-sm text-gray-600 mb-2">Pilih Jenis Kendaraan <span className="text-xs text-gray-500">(Motor dipilih otomatis)</span></label>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => handleVehicleTypeChange('MOTORCYCLE')}
-                      className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
-                        vehicleType === 'MOTORCYCLE'
-                          ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        <span className="font-medium">Motor</span>
-                      </div>
-                      <div className="text-xs mt-1">Lebih cepat & murah (Default)</div>
-                    </button>
-                    
-                    <button
-                      onClick={() => handleVehicleTypeChange('CAR')}
-                      className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
-                        vehicleType === 'CAR'
-                          ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                        <span className="font-medium">Mobil</span>
-                      </div>
-                      <div className="text-xs mt-1">Kapasitas lebih besar</div>
-                    </button>
-                  </div>
-                </div>
-                
-                {quotationError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-red-700 text-sm">{quotationError}</span>
-                    </div>
-                    <button 
-                      onClick={() => getDeliveryQuotation()}
-                      className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-                    >
-                      Coba lagi
-                    </button>
-                  </div>
-                )}
-
-                {(deliveryQuotation || isLoadingQuotation) && (
-                  <div className="bg-[#f8d7da] border border-[#f5c2c7] rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <svg className="w-5 h-5 text-[#d63384] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span className="font-medium text-[#d63384]">
-                            {isLoadingQuotation ? 'Menghitung...' : 'Pengiriman Tersedia'}
-                          </span>
-                        </div>
-                        
-                        {isLoadingQuotation ? (
-                          <div className="flex items-center justify-center py-4">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#d63384]"></div>
-                            <span className="ml-3 text-gray-600">Menghitung biaya pengiriman...</span>
-                          </div>
-                        ) : deliveryQuotation ? (
-                          <>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Biaya Pengiriman:</span>
-                                <span className="font-bold text-[#d63384]">
-                                  Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}
-                                </span>
-                              </div>
-                              
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Jarak:</span>
-                                <span className="text-gray-800">
-                                  {(parseInt(deliveryQuotation.distance.value) / 1000).toFixed(1)} km
-                                </span>
-                              </div>
-                              
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Jenis Kendaraan:</span>
-                                <span className="text-gray-800">
-                                  {vehicleType === 'MOTORCYCLE' ? 'Motor' : 'Mobil'}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="mt-3 text-xs text-gray-500">
-                              Harga berlaku hingga: {new Date(deliveryQuotation.expiresAt).toLocaleTimeString('id-ID')}
-                            </div>
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Promo Code Input */}
+          <div className="mb-2">
+            <label className="block text-sm mb-1">Kode Promo</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoInput}
+                onChange={e => setPromoInput(e.target.value)}
+                className="border p-2 rounded w-full"
+                placeholder="Masukkan kode promo"
+              />
+              <Button type="button" onClick={handleApplyPromo}>Terapkan</Button>
             </div>
-          )}
-        </div>
-
-        {/* Fixed Bottom Button */}
-        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 z-30">
-          <div className="mb-3 text-center">
-            <div className="text-sm text-gray-600 space-y-1">
-              <div className="flex justify-between">
-                <span>Subtotal Produk:</span>
-                <span>Rp{cartTotal.toLocaleString('id-ID')}</span>
-              </div>
-              {deliveryQuotation && (
-                <div className="flex justify-between">
-                  <span>Biaya Pengiriman:</span>
-                  <span>Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}</span>
-                </div>
-              )}
-              <div className="border-t pt-1 mt-2">
-                <div className="flex justify-between font-bold text-base">
-                  <span>Total:</span>
-                  <span className="text-[#d63384]">
-                    Rp{(cartTotal + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-            </div>
+            {cart.promoCode && (
+              <div className="text-black text-xs mt-1">Kode {cart.promoCode} diterapkan. Diskon: Rp{cart.discount?.toLocaleString('id-ID')}</div>
+            )}
+            {promoError && <div className="text-red-600 text-xs mt-1">{promoError}</div>}
+            {promoSuccess && <div className="text-green-600 text-xs mt-1">{promoSuccess}</div>}
           </div>
-          <Button 
-            onClick={handleSubmit}
-            className="w-full py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg"
-          >
-            {deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'}
-          </Button>
+
         </div>
 
-        {/* Custom Time Warning Popup */}
-        {showTimeWarning && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
-              {/* Header */}
-              <div className="bg-[#f5e1d8] p-4 text-black">
-                <div className="flex items-center">
-                  <div className="bg-black bg-opacity-10 rounded-full p-2 mr-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">Waktu Tidak Tersedia</h3>
-                    <p className="text-black text-opacity-70 text-sm">Pilih waktu pengiriman yang valid</p>
-                  </div>
+        {/* Delivery Quotation Section */}
+        {(isLoadingQuotation || deliveryQuotation || quotationError) && (
+          <div className="px-4 pb-4 mb-8">
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-lg font-semibold mb-3 flex items-center">
+                <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Informasi Pengiriman
+              </h3>
+              
+              {/* Delivery DateTime Selection */}
+              <div className="mb-4">
+                <label className="block text-sm text-gray-600 mb-2">Waktu Pengiriman <span className="text-red-500">*</span></label>
+                <input
+                  type="datetime-local"
+                  value={requestedDateTime}
+                  onChange={(e) => setRequestedDateTime(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Pilih waktu pengiriman yang diinginkan</p>
+              </div>
+              
+              {/* Vehicle Type Selection */}
+              <div className="mb-4">
+                <label className="block text-sm text-gray-600 mb-2">Pilih Jenis Kendaraan <span className="text-xs text-gray-500">(Motor dipilih otomatis)</span></label>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => handleVehicleTypeChange('MOTORCYCLE')}
+                    className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
+                      vehicleType === 'MOTORCYCLE'
+                        ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span className="font-medium">Motor</span>
+                    </div>
+                    <div className="text-xs mt-1">Lebih cepat & murah (Default)</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleVehicleTypeChange('CAR')}
+                    className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
+                      vehicleType === 'CAR'
+                        ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                      <span className="font-medium">Mobil</span>
+                    </div>
+                    <div className="text-xs mt-1">Kapasitas lebih besar</div>
+                  </button>
                 </div>
               </div>
               
-              {/* Content */}
-              <div className="p-6">
-                <div className="text-center mb-6">
-                  <div className="bg-[#f5e1d8] rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              {quotationError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
+                    <span className="text-red-700 text-sm">{quotationError}</span>
                   </div>
-                  <p className="text-gray-700 text-base leading-relaxed">
-                    Maaf, pengiriman hanya tersedia pada jam <span className="font-bold text-black">10:00 - 16:00</span>.
-                  </p>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Silakan pilih waktu dalam rentang jam operasional kami.
-                  </p>
+                  <button 
+                    onClick={() => getDeliveryQuotation()}
+                    className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                  >
+                    Coba lagi
+                  </button>
                 </div>
-                
+              )}
 
-                
-                {/* Action Button */}
-                <button
-                  onClick={() => setShowTimeWarning(false)}
-                  className="w-full bg-[#f5e1d8] text-black font-bold py-3 px-4 rounded-xl hover:bg-[#e9cfc0] transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  Mengerti, Pilih Waktu Lain
-                </button>
-              </div>
+              {(deliveryQuotation || isLoadingQuotation) && (
+                <div className="bg-[#f8d7da] border border-[#f5c2c7] rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <svg className="w-5 h-5 text-[#d63384] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-medium text-[#d63384]">
+                          {isLoadingQuotation ? 'Menghitung...' : 'Pengiriman Tersedia'}
+                        </span>
+                      </div>
+                      
+                      {isLoadingQuotation ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#d63384]"></div>
+                          <span className="ml-3 text-gray-600">Menghitung biaya pengiriman...</span>
+                        </div>
+                      ) : deliveryQuotation ? (
+                        <>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Biaya Pengiriman:</span>
+                              <span className="font-bold text-[#d63384]">
+                                Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Jarak:</span>
+                              <span className="text-gray-800">
+                                {(parseInt(deliveryQuotation.distance.value) / 1000).toFixed(1)} km
+                              </span>
+                            </div>
+                            
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Jenis Kendaraan:</span>
+                              <span className="text-gray-800">
+                                {vehicleType === 'MOTORCYCLE' ? 'Motor' : 'Mobil'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 text-xs text-gray-500">
+                            Harga berlaku hingga: {new Date(deliveryQuotation.expiresAt).toLocaleTimeString('id-ID')}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
+
+      </div>
+
+      {/* Fixed Bottom Button */}
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 z-30">
+        <div className="mb-3 text-center">
+          <div className="text-sm text-gray-600 space-y-1">
+            {cart.promoCode && (
+              <div className="flex justify-between">
+                <span>Diskon ({cart.promoCode}):</span>
+                <span className="text-black">-Rp{cart.discount?.toLocaleString('id-ID')}</span>
+              </div>
+            )}
+            <div className="border-t pt-1 mt-2">
+              <div className="flex justify-between font-bold text-base">
+                <span>Total:</span>
+                <span className="text-[#d63384]">
+                  Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Button 
+          onClick={handleSubmit}
+          className="w-full py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg"
+        >
+          {deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'}
+        </Button>
       </div>
     </div>
   );

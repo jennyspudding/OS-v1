@@ -17,6 +17,8 @@ export interface CartItem {
 
 export interface CartState {
   items: CartItem[];
+  promoCode?: string;
+  discount?: number;
 }
 
 const CartContext = createContext<{
@@ -25,6 +27,8 @@ const CartContext = createContext<{
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  applyPromoCode: (code: string, discount: number) => void;
+  removePromoCode: () => void;
 } | undefined>(undefined);
 
 function cartReducer(state: CartState, action: any): CartState {
@@ -59,6 +63,10 @@ function cartReducer(state: CartState, action: any): CartState {
       };
     case "CLEAR":
       return { items: [] };
+    case "APPLY_PROMO":
+      return { ...state, promoCode: action.code, discount: action.discount };
+    case "REMOVE_PROMO":
+      return { ...state, promoCode: undefined, discount: undefined };
     default:
       return state;
   }
@@ -90,10 +98,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateQuantity = (id: string, quantity: number) =>
     dispatch({ type: "UPDATE_QTY", id, quantity });
   const clearCart = () => dispatch({ type: "CLEAR" });
+  const applyPromoCode = (code: string, discount: number) => dispatch({ type: "APPLY_PROMO", code, discount });
+  const removePromoCode = () => dispatch({ type: "REMOVE_PROMO" });
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart }}
+      value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, applyPromoCode, removePromoCode }}
     >
       {children}
     </CartContext.Provider>

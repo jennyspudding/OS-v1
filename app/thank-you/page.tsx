@@ -153,10 +153,16 @@ export default function ThankYouPage() {
                 <span className="text-gray-600">Biaya Pengiriman:</span>
                 <span className="font-medium">Rp{orderData.deliveryTotal?.toLocaleString('id-ID')}</span>
               </div>
+              {orderData.promoCode && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Diskon ({orderData.promoCode}):</span>
+                  <span className="text-black">-Rp{orderData.discount?.toLocaleString('id-ID')}</span>
+                </div>
+              )}
               <div className="border-t pt-2 mt-2">
                 <div className="flex justify-between font-bold text-base">
                   <span>Total Pembayaran:</span>
-                  <span className="text-[#b48a78]">Rp{orderData.grandTotal?.toLocaleString('id-ID')}</span>
+                  <span className="text-[#b48a78]">Rp{(orderData.cartTotal - (orderData.discount || 0) + (orderData.deliveryTotal || 0)).toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>

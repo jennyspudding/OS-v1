@@ -269,9 +269,15 @@ export default function PaymentPage() {
                 <span>{formatRupiah(order.deliveryTotal)}</span>
               </div>
             )}
+            {order.promoCode && (
+              <div className="flex justify-between text-base">
+                <span>Diskon ({order.promoCode})</span>
+                <span className="text-black">- {formatRupiah(order.discount)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center font-bold text-lg border-t pt-2">
               <span>Total</span>
-              <span className="text-[#b48a78]">{formatRupiah(order.grandTotal)}</span>
+              <span className="text-[#b48a78]">{formatRupiah(order.cartTotal - (order.discount || 0) + (order.deliveryTotal || 0))}</span>
             </div>
           </div>
         </div>
