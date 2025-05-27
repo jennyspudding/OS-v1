@@ -60,6 +60,7 @@ function CustomerInfoContent() {
   const [promoError, setPromoError] = useState("");
   const [promoSuccess, setPromoSuccess] = useState("");
   const [coupons, setCoupons] = useState<any[]>([]);
+  const [mapKey, setMapKey] = useState(0);
 
   // Calculate cart total
   const cartTotal = cart.items.reduce((sum, item) => {
@@ -67,6 +68,16 @@ function CustomerInfoContent() {
     const addOnsTotal = item.addOns ? item.addOns.reduce((addOnSum, addOn) => addOnSum + addOn.price, 0) * item.quantity : 0;
     return sum + itemTotal + addOnsTotal;
   }, 0);
+
+  // Auto-reload map when entering the page
+  useEffect(() => {
+    // Force map to reload by changing its key
+    const timer = setTimeout(() => {
+      setMapKey(prev => prev + 1);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load saved data from both localStorage and sessionStorage on component mount
   useEffect(() => {
@@ -818,6 +829,7 @@ function CustomerInfoContent() {
             )}
             
             <SimpleGoogleMap
+              key={mapKey}
               initialCenter={mapCenter || { lat: -6.2088, lng: 106.8456 }}
               onLocationSelect={handleLocationSelect}
               height="350px"
@@ -829,25 +841,7 @@ function CustomerInfoContent() {
             />
           </div>
 
-          {/* Promo Code Input */}
-          <div className="mb-2">
-            <label className="block text-sm mb-1">Kode Promo</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={promoInput}
-                onChange={e => setPromoInput(e.target.value)}
-                className="border p-2 rounded w-full"
-                placeholder="Masukkan kode promo"
-              />
-              <Button type="button" onClick={handleApplyPromo}>Terapkan</Button>
-            </div>
-            {cart.promoCode && (
-              <div className="text-black text-xs mt-1">Kode {cart.promoCode} diterapkan. Diskon: Rp{cart.discount?.toLocaleString('id-ID')}</div>
-            )}
-            {promoError && <div className="text-red-600 text-xs mt-1">{promoError}</div>}
-            {promoSuccess && <div className="text-green-600 text-xs mt-1">{promoSuccess}</div>}
-          </div>
+
 
         </div>
 
@@ -988,6 +982,51 @@ function CustomerInfoContent() {
             </div>
           </div>
         )}
+
+        {/* Promo Code Section */}
+        <div className="px-4 pb-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h3 className="text-lg font-semibold mb-3 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Kode Promo
+            </h3>
+            
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={promoInput}
+                onChange={e => setPromoInput(e.target.value)}
+                className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent"
+                placeholder="Masukkan kode promo"
+              />
+              <Button 
+                type="button" 
+                onClick={handleApplyPromo} 
+                className="px-6 py-3 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg whitespace-nowrap"
+              >
+                Terapkan
+              </Button>
+            </div>
+            
+            {cart.promoCode && (
+              <div className="text-green-600 text-sm mt-2 font-medium bg-green-50 border border-green-200 rounded-lg p-3">
+                ✓ Kode {cart.promoCode} berhasil diterapkan! Diskon: Rp{cart.discount?.toLocaleString('id-ID')}
+              </div>
+            )}
+            {promoError && (
+              <div className="text-red-600 text-sm mt-2 bg-red-50 border border-red-200 rounded-lg p-3">
+                ❌ {promoError}
+              </div>
+            )}
+            {promoSuccess && (
+              <div className="text-green-600 text-sm mt-2 bg-green-50 border border-green-200 rounded-lg p-3">
+                ✓ {promoSuccess}
+              </div>
+            )}
+          </div>
+        </div>
 
       </div>
 
