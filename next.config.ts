@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Simplified configuration for better compatibility
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
 };
 
 export default withPWA({

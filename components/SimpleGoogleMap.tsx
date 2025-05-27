@@ -52,9 +52,22 @@ export default function SimpleGoogleMap({
   const [searchValue, setSearchValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [forceReload, setForceReload] = useState(0);
 
+  // Auto-reload map when component mounts or when forced
   useEffect(() => {
+    console.log('SimpleGoogleMap: Component mounted or force reload triggered');
     loadGoogleMaps();
+  }, [forceReload]);
+
+  // Force reload when entering the page (triggered by parent component key change)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('SimpleGoogleMap: Auto-reloading map after 500ms');
+      setForceReload(prev => prev + 1);
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

@@ -20,9 +20,22 @@ export default function InteractiveMap({
   const [isLoading, setIsLoading] = useState(true);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [forceReload, setForceReload] = useState(0);
 
+  // Auto-reload map when component mounts or when forced
   useEffect(() => {
+    console.log('InteractiveMap: Component mounted or force reload triggered');
     initializeMap();
+  }, [forceReload]);
+
+  // Force reload when entering the page
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('InteractiveMap: Auto-reloading map after 500ms');
+      setForceReload(prev => prev + 1);
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

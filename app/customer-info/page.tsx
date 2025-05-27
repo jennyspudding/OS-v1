@@ -71,12 +71,32 @@ function CustomerInfoContent() {
 
   // Auto-reload map when entering the page
   useEffect(() => {
-    // Force map to reload by changing its key
+    console.log('CustomerInfo: Auto-reloading map on page entry');
+    // Force map to reload by changing its key immediately
+    setMapKey(prev => prev + 1);
+    
+    // Additional reload after a short delay to ensure proper initialization
     const timer = setTimeout(() => {
+      console.log('CustomerInfo: Secondary map reload after 1.5s');
       setMapKey(prev => prev + 1);
-    }, 1000);
+    }, 1500);
     
     return () => clearTimeout(timer);
+  }, []);
+
+  // Additional map reload when page becomes visible (handles browser back/forward)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('CustomerInfo: Page became visible, reloading map');
+        setTimeout(() => {
+          setMapKey(prev => prev + 1);
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   // Load saved data from both localStorage and sessionStorage on component mount

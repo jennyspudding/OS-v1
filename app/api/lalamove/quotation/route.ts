@@ -31,8 +31,8 @@ function calculateDeliveryPrice(distanceKm: number, serviceType: string): number
     } else {
       finalPrice = 9200 + 2300 * (distanceKm - 4);
     }
-  } else if (serviceType === 'CAR') {
-    // City-Car: if d ≤ 3: fare = 37,000, else: fare = 37,000 + 2,500 * (d - 3)
+  } else if (serviceType === 'CAR' || serviceType === 'SEDAN') {
+    // City-Car/Sedan: if d ≤ 3: fare = 37,000, else: fare = 37,000 + 2,500 * (d - 3)
     if (distanceKm <= 3) {
       finalPrice = 37000;
     } else {
@@ -62,7 +62,7 @@ function calculateDeliveryPrice(distanceKm: number, serviceType: string): number
     finalPrice,
     formula: serviceType === 'MOTORCYCLE' 
       ? (distanceKm <= 4 ? '9,200 (base ≤4km)' : `9,200 + 2,300 × (${distanceKm.toFixed(2)} - 4)`)
-      : serviceType === 'CAR'
+      : (serviceType === 'CAR' || serviceType === 'SEDAN')
       ? (distanceKm <= 3 ? '37,000 (base ≤3km)' : `37,000 + 2,500 × (${distanceKm.toFixed(2)} - 3)`)
       : 'Legacy formula'
   });
@@ -367,10 +367,13 @@ function getEstimatedDeliveryTime(serviceType: string): string {
   switch (serviceType) {
     case 'MOTORCYCLE':
       return '30-45 menit';
+    case 'SEDAN':
     case 'CAR':
       return '45-60 menit';
     case 'VAN':
       return '60-90 menit';
+    case 'TRUCK':
+      return '90-120 menit';
     default:
       return '30-60 menit';
   }

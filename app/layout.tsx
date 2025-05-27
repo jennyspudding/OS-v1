@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/CartContext";
@@ -14,7 +14,6 @@ export const metadata: Metadata = {
   title: "Jenny's Pudding - Delicious Cakes & Puddings",
   description: "Premium cakes, puddings, and desserts delivered fresh to your door",
   manifest: "/manifest.json",
-  themeColor: "#ffffff",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -34,6 +33,10 @@ export const metadata: Metadata = {
     title: "Jenny's Pudding - Delicious Cakes & Puddings",
     description: "Premium cakes, puddings, and desserts delivered fresh to your door",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

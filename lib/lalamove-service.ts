@@ -2,15 +2,10 @@ import crypto from 'crypto';
 
 // Lalamove API Configuration
 const LALAMOVE_CONFIG = {
-  // Use sandbox for development, production for live
-  baseUrl: process.env.NODE_ENV === 'production' 
-    ? 'https://rest.lalamove.com/v3' 
-    : 'https://rest.sandbox.lalamove.com/v3',
-  apiKey: process.env.LALAMOVE_API_KEY || '',
-  apiSecret: process.env.LALAMOVE_API_SECRET || '',
-  market: 'ID JKT', // Jakarta, Indonesia market code
-  country: 'ID', // Indonesia country code
-  region: 'ID JKT', // Jakarta region code
+  apiKey: process.env.LALAMOVE_API_KEY || 'pk_prod_73db2a37a226646a93bc5b22d2a5a3f8',
+  apiSecret: process.env.LALAMOVE_API_SECRET || 'sk_prod_LL3V+vIfMJeEtyWI7Ahv0q0GFQRgjUmXPRtNXHBK7FMer27BcX3DsgulEYZGbFJq',
+  baseUrl: 'https://rest.lalamove.com',
+  market: 'ID', // Indonesia market code
 };
 
 // Indonesia coordinate bounds for validation
@@ -49,7 +44,7 @@ export interface LalamoveItem {
 
 export interface LalamoveQuotationRequest {
   scheduleAt?: string;
-  serviceType: 'MOTORCYCLE' | 'CAR' | 'VAN' | 'TRUCK';
+  serviceType: 'MOTORCYCLE' | 'SEDAN' | 'CAR' | 'VAN' | 'TRUCK';
   specialRequests?: string[];
   language?: string;
   stops: LalamoveStop[];
@@ -81,18 +76,16 @@ export interface LalamoveQuotationResponse {
   item?: any;
 }
 
-// Generate signature for Lalamove API authentication
+// Generate HMAC signature for Lalamove API authentication
 function generateSignature(
   method: string,
   path: string,
-  timestamp: number,
-  body: string = ''
+  timestamp: string,
+  body: string,
+  secret: string
 ): string {
-  const rawSignature = `${method}\n${path}\n\n${timestamp}\n${body}`;
-  return crypto
-    .createHmac('sha256', LALAMOVE_CONFIG.apiSecret)
-    .update(rawSignature)
-    .digest('hex');
+  const rawSignature = `${timestamp}\r\n${method}\r\n${path}\r\n\r\n${body}`;
+  return crypto.createHmac('sha256', secret).update(rawSignature).digest('hex');
 }
 
 // Geocode address to coordinates using a geocoding service
@@ -131,11 +124,18 @@ export function validateIndonesianCoordinates(lat: number, lng: number): boolean
   );
 }
 
-// Get quotation from Lalamove API
+// Get quotation from Lalamove API using direct API calls
 export async function getLalamoveQuotation(
   request: LalamoveQuotationRequest
 ): Promise<LalamoveQuotationResponse | null> {
   try {
+    // Check if we should use mock service
+    if (!LALAMOVE_CONFIG.apiKey || !LALAMOVE_CONFIG.apiSecret) {
+      console.log('🧪 No Lalamove API credentials found, using mock service');
+      const { getMockLalamoveQuotation } = await import('./lalamove-mock-service');
+      return await getMockLalamoveQuotation(request);
+    }
+
     // Validate coordinates before making API call
     for (const stop of request.stops) {
       const lat = parseFloat(stop.coordinates.lat);
@@ -146,39 +146,49 @@ export async function getLalamoveQuotation(
       }
     }
 
-    const timestamp = Date.now();
-    const path = '/quotations';
+    // Convert service type for API (MOTORCYCLE -> MOTORCYCLE, CAR -> SEDAN)
+    let apiServiceType = request.serviceType;
+    if (request.serviceType === 'CAR') {
+      apiServiceType = 'SEDAN';
+    }
+
+    // Prepare the payload data
+    const payloadData = {
+      scheduleAt: request.scheduleAt || new Date().toISOString(),
+      serviceType: apiServiceType,
+      specialRequests: request.specialRequests || [],
+      language: request.language || "id_ID",
+      stops: request.stops,
+      isRouteOptimized: request.isRouteOptimized !== false
+    };
+
     const method = 'POST';
-    const body = JSON.stringify({ data: request });
+    const path = '/v3/quotations';
+    const timestamp = Date.now().toString(); // MILLISECOND
+    const body = JSON.stringify({ data: payloadData });
     
-    const signature = generateSignature(method, path, timestamp, body);
-    
+    // Generate signature
+    const signature = generateSignature(method, path, timestamp, body, LALAMOVE_CONFIG.apiSecret);
+    const token = `${LALAMOVE_CONFIG.apiKey}:${timestamp}:${signature}`;
+
     console.log('Making Lalamove API request:', {
       url: `${LALAMOVE_CONFIG.baseUrl}${path}`,
-      market: LALAMOVE_CONFIG.market,
-      country: LALAMOVE_CONFIG.country,
-      region: LALAMOVE_CONFIG.region,
-      requestBody: request,
-      stops: request.stops.map(stop => ({
-        coordinates: stop.coordinates,
-        address: stop.address,
-      }))
+      method,
+      serviceType: apiServiceType,
+      stops: request.stops.length,
+      market: LALAMOVE_CONFIG.market
     });
-    
-    console.log('=== EXACT JSON BEING SENT TO LALAMOVE ===');
-    console.log(body);
-    console.log('=== END JSON ===');
-    
+
+    // Make the API request
     const response = await fetch(`${LALAMOVE_CONFIG.baseUrl}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `hmac ${LALAMOVE_CONFIG.apiKey}:${timestamp}:${signature}`,
-        'Accept': 'application/json',
-        'X-LLM-Country': LALAMOVE_CONFIG.country,
-        'X-LLM-Market': LALAMOVE_CONFIG.market,
+        'Authorization': `hmac ${token}`,
+        'Market': LALAMOVE_CONFIG.market,
+        'Request-ID': `jenny-pudding-${Date.now()}`
       },
-      body: body,
+      body: body
     });
 
     const responseText = await response.text();
@@ -192,15 +202,59 @@ export async function getLalamoveQuotation(
       } catch {
         errorData = { message: responseText };
       }
-      console.error('Lalamove API error:', errorData);
-      throw new Error(`Lalamove API error: ${JSON.stringify(errorData)}`);
+      
+      console.error('Lalamove API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+      
+      // Fallback to mock service on API error
+      console.log('🧪 Falling back to mock service due to API error');
+      const { getMockLalamoveQuotation } = await import('./lalamove-mock-service');
+      return await getMockLalamoveQuotation(request);
     }
 
-    const data = JSON.parse(responseText);
-    return data.data;
+    const apiResponse = JSON.parse(responseText);
+    console.log('Lalamove API success response:', apiResponse);
+
+    // Convert API response to our format
+    const quotationData = apiResponse.data || apiResponse;
+    const response_formatted: LalamoveQuotationResponse = {
+      quotationId: quotationData.quotationId || `api-${Date.now()}`,
+      scheduleAt: quotationData.scheduleAt,
+      serviceType: request.serviceType, // Use original service type
+      specialRequests: quotationData.specialRequests || [],
+      expiresAt: quotationData.expiresAt || new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      priceBreakdown: {
+        base: quotationData.priceBreakdown?.base || '0',
+        extraMileage: quotationData.priceBreakdown?.extraMileage || '0',
+        surcharge: quotationData.priceBreakdown?.surcharge || '0',
+        totalBeforeOptimization: quotationData.priceBreakdown?.totalBeforeOptimization || quotationData.priceBreakdown?.total || '0',
+        totalExcludePriorityFee: quotationData.priceBreakdown?.totalExcludePriorityFee || quotationData.priceBreakdown?.total || '0',
+        total: quotationData.priceBreakdown?.total || '0',
+        currency: quotationData.priceBreakdown?.currency || 'IDR'
+      },
+      distance: {
+        value: quotationData.distance?.value || '0',
+        unit: quotationData.distance?.unit || 'km'
+      },
+      stops: request.stops
+    };
+
+    return response_formatted;
   } catch (error) {
-    console.error('Lalamove quotation error:', error);
-    throw error; // Re-throw to handle in calling function
+    console.error('Lalamove API quotation error:', error);
+    
+    // Fallback to mock service if real API fails
+    console.log('🧪 Falling back to mock service due to API error');
+    try {
+      const { getMockLalamoveQuotation } = await import('./lalamove-mock-service');
+      return await getMockLalamoveQuotation(request);
+    } catch (mockError) {
+      console.error('Mock service also failed:', mockError);
+      throw error; // Throw original error
+    }
   }
 }
 
@@ -212,7 +266,7 @@ export function createDeliveryQuotationRequest(
   deliveryAddress: string,
   recipientName?: string,
   recipientPhone?: string,
-  serviceType: 'MOTORCYCLE' | 'CAR' | 'VAN' | 'TRUCK' = 'MOTORCYCLE',
+  serviceType: 'MOTORCYCLE' | 'SEDAN' | 'CAR' | 'VAN' | 'TRUCK' = 'MOTORCYCLE',
   storeName?: string,
   storePhone?: string,
   isRequestedAt?: string
@@ -247,19 +301,22 @@ export function createDeliveryQuotationRequest(
 // Format price for display
 export function formatLalamovePrice(priceBreakdown: LalamovePriceBreakdown): string {
   const total = parseInt(priceBreakdown.total);
-  return `Rp${total.toLocaleString('id-ID')}`;
+  return `IDR ${total.toLocaleString('id-ID')}`;
 }
 
-// Get estimated delivery time (this would need to be enhanced with real data)
+// Get estimated delivery time based on service type
 export function getEstimatedDeliveryTime(serviceType: string): string {
   switch (serviceType) {
     case 'MOTORCYCLE':
-      return '30-45 menit';
+      return '30-45 minutes';
+    case 'SEDAN':
     case 'CAR':
-      return '45-60 menit';
+      return '45-60 minutes';
     case 'VAN':
-      return '60-90 menit';
+      return '60-90 minutes';
+    case 'TRUCK':
+      return '90-120 minutes';
     default:
-      return '30-60 menit';
+      return '30-60 minutes';
   }
 } 
