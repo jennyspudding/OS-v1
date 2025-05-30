@@ -644,15 +644,17 @@ export default function Home() {
                   href="/express-store"
                   className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
                 >
-                  <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center md:w-16 md:h-16 shadow-lg border-2 border-amber-300/50 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
-                    <span className="text-xl md:text-2xl animate-pulse">⚡</span>
+                  <div className="w-14 h-14 bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-600 rounded-2xl flex items-center justify-center md:w-16 md:h-16 shadow-lg border-2 border-yellow-400/60 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300 relative overflow-hidden">
+                    {/* Premium shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent transform -skew-x-12 group-hover:animate-pulse"></div>
+                    <span className="text-xl md:text-2xl animate-pulse relative z-10">⚡</span>
                   </div>
-                  {/* Express Badge */}
-                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold text-[8px] md:text-[10px] animate-bounce">
-                    NEW
+                  {/* Same Day Badge - Upper Left */}
+                  <div className="absolute -top-1 -left-1 bg-gradient-to-r from-green-500 to-green-600 text-white text-[8px] md:text-[9px] px-1 py-0.5 rounded-md font-bold shadow-sm transform -rotate-12 whitespace-nowrap">
+                    Same Day
                   </div>
                 </Link>
-                <span className="text-xs font-medium text-center font-brand max-w-[72px] leading-tight text-amber-600 md:text-sm font-bold">
+                <span className="text-xs font-medium text-center font-brand max-w-[72px] leading-tight text-amber-700 md:text-sm font-bold">
                   Express
                 </span>
               </div>
