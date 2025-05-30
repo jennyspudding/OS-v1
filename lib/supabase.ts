@@ -60,9 +60,29 @@ export const insertCompleteOrder = async (orderData: any) => {
       // Return mock UUID for testing
       return 'mock-uuid-' + Date.now()
     }
+
+    // Generate guest session ID for security
+    const guestSessionId = localStorage.getItem('guest_session_id') || 
+                          `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('guest_session_id', guestSessionId);
+
+    // Add security fields to order data
+    const secureOrderData = {
+      ...orderData,
+      customer_user_id: null, // Will be set when customer authentication is implemented
+      is_guest_order: true,
+      guest_session_id: guestSessionId,
+      security_flags: {
+        client_timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        source: 'jennys_pudding_frontend'
+      }
+    };
+
+    console.log('Secure order data:', JSON.stringify(secureOrderData, null, 2));
     
     const { data, error } = await supabase.rpc('insert_complete_order', {
-      order_data: orderData
+      order_data: secureOrderData
     })
 
     console.log('Supabase response:', { data, error })
@@ -79,93 +99,56 @@ export const insertCompleteOrder = async (orderData: any) => {
   }
 }
 
-// Helper function to update order status by UUID (for newly created orders)
+// Helper function to update order status by UUID
 export const updateOrderStatusByUuid = async (orderUuid: string, status: string, paymentProofUrl: string | null = null) => {
   try {
-    console.log('=== UPDATE ORDER STATUS BY UUID DEBUG ===')
+    console.log('=== UPDATING ORDER STATUS DEBUG ===')
     console.log('Order UUID:', orderUuid)
-    console.log('Order UUID type:', typeof orderUuid)
-    console.log('Order UUID length:', orderUuid?.length)
     console.log('New Status:', status)
     console.log('Payment Proof URL:', paymentProofUrl)
     console.log('Supabase configured:', isSupabaseConfigured)
     
     if (!isSupabaseConfigured) {
-      console.warn('⚠️ SUPABASE NOT CONFIGURED - Skipping status update')
-      return [{ id: 'mock-id', order_id: orderUuid, status }]
-    }
-    
-    const updateData: any = { 
-      status,
-      updated_at: new Date().toISOString()
-    }
-    
-    if (paymentProofUrl) {
-      updateData.payment_proof_url = paymentProofUrl
-      updateData.payment_method = 'bank_transfer'
+      console.warn('⚠️ SUPABASE NOT CONFIGURED - Using mock response')
+      return { data: [{ id: orderUuid, status }], error: null }
     }
 
-    console.log('Update data being sent:', updateData)
-
-    // First, let's verify the order exists
-    const { data: existingOrder, error: checkError } = await supabase
-      .from('orders')
-      .select('id, order_id, status')
-      .eq('id', orderUuid)
-      .single()
-
-    console.log('Existing order check:', { existingOrder, checkError })
-    console.log('Existing order details:', existingOrder)
-
-    if (checkError || !existingOrder) {
-      console.error('Order not found with UUID:', orderUuid)
-      throw new Error(`Order not found with UUID: ${orderUuid}`)
-    }
-
-    // Try the update with explicit select to see what happens
-    const { data, error } = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('id', orderUuid)  // Use UUID instead of order_id
-      .select('*')  // Select all fields to see what's returned
-
-    // If the regular update fails, try using RPC to bypass RLS
-    if (!data || data.length === 0) {
-      console.log('Regular update failed, trying RPC method...')
+    // Set guest session context for RLS if available
+    const guestSessionId = localStorage.getItem('guest_session_id');
+    if (guestSessionId) {
+      console.log('Setting guest session context:', guestSessionId);
       
-      const { data: rpcData, error: rpcError } = await supabase.rpc('update_order_status_direct', {
-        order_uuid: orderUuid,
-        new_status: status,
-        proof_url: paymentProofUrl,
-        payment_method_val: 'bank_transfer'
-      })
-      
-      console.log('RPC update response:', { rpcData, rpcError })
-      
-      if (rpcError) {
-        console.log('RPC also failed, this might be an RLS issue')
-      } else {
-        console.log('RPC update succeeded!')
-        return [{ id: orderUuid, status }] // Return success format
+      // Set the guest session for RLS context
+      try {
+        await supabase.rpc('set_config', {
+          setting_name: 'app.guest_session',
+          setting_value: guestSessionId,
+          is_local: true
+        });
+      } catch (err: any) {
+        console.warn('Could not set guest session context:', err);
       }
     }
+
+    // Use the new secure update function
+    const { data, error } = await supabase.rpc('update_order_status_secure', {
+      order_uuid: orderUuid,
+      new_status: status,
+      proof_url: paymentProofUrl,
+      payment_method_val: null
+    });
 
     console.log('Update response:', { data, error })
 
     if (error) {
-      console.error('Supabase update error:', error)
+      console.error('Supabase error details:', error)
       throw error
     }
 
-    if (!data || data.length === 0) {
-      console.warn('No rows were updated. Order UUID might not exist:', orderUuid)
-    } else {
-      console.log('Successfully updated order:', data[0])
-    }
-
-    return data
+    // Return data in expected format
+    return { data: [{ id: orderUuid, status }], error: null };
   } catch (error) {
-    console.error('Error updating order status by UUID:', error)
+    console.error('Error updating order status:', error)
     throw error
   }
 }

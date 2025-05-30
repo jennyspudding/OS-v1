@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import { googleMapsLoader } from '../lib/google-maps-loader';
 
 interface InteractiveMapProps {
   initialCenter?: { lat: number; lng: number };
@@ -20,27 +20,29 @@ export default function InteractiveMap({
   const [isLoading, setIsLoading] = useState(true);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [forceReload, setForceReload] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  // Auto-reload map when component mounts or when forced
+  // 🚀 ULTRA-FAST MAP INITIALIZATION - Load immediately with minimal delay
   useEffect(() => {
-    console.log('InteractiveMap: Component mounted or force reload triggered');
-    initializeMap();
-  }, [forceReload]);
-
-  // Force reload when entering the page
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log('InteractiveMap: Auto-reloading map after 500ms');
-      setForceReload(prev => prev + 1);
-    }, 500);
+    // Reset state for fresh initialization
+    setIsLoading(true);
+    setError(null);
     
-    return () => clearTimeout(timer);
-  }, []);
+    // Immediate initialization - no delay
+    initializeMap();
+    
+    return () => {
+      // Cleanup any pending operations
+    };
+  }, []); // Only run once on mount
 
+  // 🎯 OPTIMIZED CENTER UPDATES - Faster handling when initialCenter changes
   useEffect(() => {
     if (map && initialCenter) {
+      // Quick center update without animation for speed
       map.setCenter(initialCenter);
+      
+      // Direct marker position update
       if (marker) {
         marker.position = initialCenter;
       }
@@ -51,86 +53,100 @@ export default function InteractiveMap({
     try {
       const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
       
-      console.log('Initializing Google Maps...');
-      console.log('API Key available:', apiKey ? 'Yes' : 'No');
-      console.log('API Key length:', apiKey ? apiKey.length : 0);
-      
       if (!apiKey) {
-        console.error('Google Maps API key not found');
+        setError('Google Maps API key not found');
         setIsLoading(false);
         return;
       }
 
-      console.log('Creating Google Maps loader...');
-      const loader = new Loader({
-        apiKey,
-        version: 'weekly',
-        libraries: ['places', 'geocoding', 'marker']
-      });
-
-      console.log('Loading Google Maps API...');
-      const google = await Promise.race([
-        loader.load(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Google Maps loading timeout after 15 seconds')), 15000)
-        )
-      ]) as typeof window.google;
-      
-      console.log('Google Maps API loaded successfully');
+      // Use centralized loader to prevent multiple API loads
+      await googleMapsLoader.loadGoogleMaps(apiKey);
       
       if (!mapRef.current) {
-        console.error('Map container ref not found');
+        setError('Map container ref not found');
+        setIsLoading(false);
         return;
       }
 
-      console.log('Creating map instance...');
-      const mapInstance = new google.maps.Map(mapRef.current, {
+      // 🚀 SIMPLIFIED MAP CONFIGURATION - Minimal options for faster loading
+      const mapInstance = new window.google.maps.Map(mapRef.current, {
         center: initialCenter,
         zoom: 13,
-        mapId: 'DEMO_MAP_ID', // Required for AdvancedMarkerElement
+        mapId: 'DEMO_MAP_ID',
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
+        // 🚀 PERFORMANCE OPTIMIZATIONS
+        disableDefaultUI: false,
+        clickableIcons: false, // Disable POI clicks for better performance
+        styles: [] // No custom styling for faster rendering
       });
 
-      console.log('Map instance created, adding listeners...');
-
-      // Create marker using AdvancedMarkerElement (new recommended approach)
-      const markerInstance = new google.maps.marker.AdvancedMarkerElement({
+      // 🚀 SIMPLIFIED MARKER CREATION
+      const markerInstance = new window.google.maps.marker.AdvancedMarkerElement({
         position: initialCenter,
         map: mapInstance,
         gmpDraggable: true,
         title: 'Lokasi Pengiriman'
       });
 
-      console.log('Marker created');
-
-      // Add click listener to map
+      // 🚀 OPTIMIZED CLICK LISTENER - Minimal processing
       mapInstance.addListener('click', (event: google.maps.MapMouseEvent) => {
         if (event.latLng) {
           const position = {
             lat: event.latLng.lat(),
             lng: event.latLng.lng()
           };
+          
+          // Fast marker update
           markerInstance.position = position;
-          reverseGeocode(position);
+          
+          // Lazy load reverse geocoding
+          setTimeout(() => reverseGeocode(position), 0);
         }
       });
 
-      // Add drag listener to marker for AdvancedMarkerElement
-      markerInstance.addListener('dragend', (event: any) => {
+      // 🚀 OPTIMIZED DRAG LISTENER
+      markerInstance.addListener('dragend', () => {
         const position = markerInstance.position;
         if (position) {
           const coords = {
             lat: position.lat,
             lng: position.lng
           };
-          reverseGeocode(coords);
+          
+          // Lazy load reverse geocoding
+          setTimeout(() => reverseGeocode(coords), 0);
         }
       });
 
-      // Initialize Places Autocomplete
-      if (searchInputRef.current) {
+      setMap(mapInstance);
+      setMarker(markerInstance);
+      setIsLoading(false);
+      setError(null);
+
+      // 🚀 LAZY LOAD SEARCH FUNCTIONALITY - Load after map is ready
+      setTimeout(() => {
+        loadSearchFeatures(mapInstance, markerInstance);
+      }, 100);
+
+    } catch (error) {
+      setError('Terjadi kesalahan saat menginisialisasi peta');
+      setIsLoading(false);
+    }
+  };
+
+  // 🚀 LAZY LOAD SEARCH FEATURES - Load search functionality after map is ready
+  const loadSearchFeatures = async (mapInstance: google.maps.Map, markerInstance: google.maps.marker.AdvancedMarkerElement) => {
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) return;
+
+      // Load places library using centralized loader
+      await googleMapsLoader.loadLibrary(apiKey, 'places');
+
+      // Setup autocomplete after places library is loaded
+      if (searchInputRef.current && window.google.maps.places) {
         const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
           componentRestrictions: { country: 'id' },
           fields: ['place_id', 'geometry', 'name', 'formatted_address']
@@ -143,9 +159,11 @@ export default function InteractiveMap({
               lat: place.geometry.location.lat(),
               lng: place.geometry.location.lng()
             };
+            
             mapInstance.setCenter(position);
             mapInstance.setZoom(17);
             markerInstance.position = position;
+            
             onLocationSelect({
               ...position,
               address: place.formatted_address || place.name || ''
@@ -153,23 +171,27 @@ export default function InteractiveMap({
           }
         });
       }
-
-      console.log('Setting up map state...');
-      setMap(mapInstance);
-      setMarker(markerInstance);
-      
-      console.log('Map initialization complete, setting loading to false');
-      setIsLoading(false);
-
     } catch (error) {
-      console.error('Error loading Google Maps:', error);
-      console.error('Error details:', error);
-      setIsLoading(false);
+      // Search features failed to load, but map still works
+      console.warn('Search features failed to load:', error);
     }
   };
 
+  // 🚀 OPTIMIZED REVERSE GEOCODING - Lazy loaded
   const reverseGeocode = async (position: { lat: number; lng: number }) => {
     try {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        onLocationSelect({
+          ...position,
+          address: `${position.lat}, ${position.lng}`
+        });
+        return;
+      }
+
+      // Load geocoding library using centralized loader
+      await googleMapsLoader.loadLibrary(apiKey, 'geocoding');
+
       const geocoder = new google.maps.Geocoder();
       const response = await geocoder.geocode({
         location: position
@@ -180,9 +202,14 @@ export default function InteractiveMap({
           ...position,
           address: response.results[0].formatted_address
         });
+      } else {
+        onLocationSelect({
+          ...position,
+          address: `${position.lat}, ${position.lng}`
+        });
       }
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      // Fallback to coordinates if geocoding fails
       onLocationSelect({
         ...position,
         address: `${position.lat}, ${position.lng}`
@@ -190,6 +217,7 @@ export default function InteractiveMap({
     }
   };
 
+  // 🚀 OPTIMIZED CURRENT LOCATION - Faster GPS access
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       alert('Geolocation tidak didukung oleh browser ini.');
@@ -209,55 +237,60 @@ export default function InteractiveMap({
           map.setCenter(currentPos);
           map.setZoom(17);
           marker.position = currentPos;
-          reverseGeocode(currentPos);
+          
+          // Lazy load reverse geocoding
+          setTimeout(() => reverseGeocode(currentPos), 0);
         }
 
         setIsGettingLocation(false);
       },
       (error) => {
-        console.error('Error getting location:', error);
         alert('Tidak dapat mengakses lokasi. Pastikan izin lokasi telah diberikan.');
         setIsGettingLocation(false);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
+        timeout: 5000, // Reduced timeout for faster response
+        maximumAge: 30000 // Reduced cache time
       }
     );
   };
 
+  // 🚀 SIMPLIFIED SEARCH HANDLER
   const handleSearch = () => {
     if (!searchValue.trim() || !map) return;
 
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode(
-      {
-        address: searchValue,
-        componentRestrictions: { country: 'id' }
-      },
-      (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const location = results[0].geometry.location;
-          const position = {
-            lat: location.lat(),
-            lng: location.lng()
-          };
+    // Use basic geocoding for manual search
+    if (window.google && window.google.maps && window.google.maps.Geocoder) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode(
+        {
+          address: searchValue,
+          componentRestrictions: { country: 'id' }
+        },
+        (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const location = results[0].geometry.location;
+            const position = {
+              lat: location.lat(),
+              lng: location.lng()
+            };
 
-          map.setCenter(position);
-          map.setZoom(17);
-          if (marker) {
-            marker.position = position;
+            map.setCenter(position);
+            map.setZoom(17);
+            if (marker) {
+              marker.position = position;
+            }
+            onLocationSelect({
+              ...position,
+              address: results[0].formatted_address
+            });
+          } else {
+            alert('Lokasi tidak ditemukan. Coba dengan alamat yang lebih spesifik.');
           }
-          onLocationSelect({
-            ...position,
-            address: results[0].formatted_address
-          });
-        } else {
-          alert('Lokasi tidak ditemukan. Coba dengan alamat yang lebih spesifik.');
         }
-      }
-    );
+      );
+    }
   };
 
   if (isLoading) {
@@ -268,8 +301,32 @@ export default function InteractiveMap({
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-500 mb-2"></div>
             <span className="text-gray-600 mb-2">Memuat peta...</span>
             <div className="text-xs text-gray-500">
-              Jika peta tidak muncul dalam 15 detik, periksa koneksi internet atau API key
+              Mohon tunggu, sedang memuat peta...
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="relative" style={{ height }}>
+        <div className="absolute inset-0 bg-red-50 rounded-lg border-2 border-red-200 flex items-center justify-center">
+          <div className="text-center p-4">
+            <div className="text-4xl mb-3">⚠️</div>
+            <div className="text-red-700 font-medium mb-2">Gagal Memuat Peta</div>
+            <div className="text-sm text-red-600 mb-4">{error}</div>
+            <button
+              onClick={() => {
+                setError(null);
+                setIsLoading(true);
+                initializeMap();
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Coba Lagi
+            </button>
           </div>
         </div>
       </div>
@@ -303,8 +360,13 @@ export default function InteractiveMap({
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             placeholder="Cari alamat lengkap Anda..."
-            className="flex-1 px-3 py-2 text-sm focus:outline-none"
+            className="flex-1 px-3 py-2 text-sm focus:outline-none bg-white text-gray-900"
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            autoComplete="off"
+            spellCheck="false"
+            autoCorrect="off"
+            autoCapitalize="off"
+            style={{ fontSize: '16px' }}
           />
           <button
             onClick={handleSearch}
@@ -339,7 +401,7 @@ export default function InteractiveMap({
       {/* Instructions */}
       <div className="absolute bottom-3 left-3 right-3 z-10">
         <div className="bg-white bg-opacity-90 rounded-lg px-3 py-2 text-xs text-gray-600 text-center">
-          Cari alamat lengkap Anda atau gunakan "Lokasi Saya" untuk mendapatkan koordinat yang tepat
+          Klik pada peta untuk memilih lokasi atau seret marker untuk menyesuaikan posisi
         </div>
       </div>
     </div>

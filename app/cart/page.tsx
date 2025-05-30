@@ -15,6 +15,7 @@ export default function CartPage() {
 
   // Calculate total price
   const total = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const isCartEmpty = cart.items.length === 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
@@ -89,10 +90,17 @@ export default function CartPage() {
       </div>
       {/* Fixed Bottom Bar */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 flex items-center justify-end gap-2 z-30">
-        <span className="font-bold text-base mr-2">Total {formatRupiah(total)}</span>
+        <span className="font-bold text-base mr-2">
+          Total {isCartEmpty ? formatRupiah(0) : formatRupiah(total)}
+        </span>
         <Button 
-          onClick={() => router.push('/customer-info')}
-          className="w-40 max-w-xs py-3 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg"
+          onClick={() => !isCartEmpty && router.push('/customer-info')}
+          disabled={isCartEmpty}
+          className={`w-40 max-w-xs py-3 text-base rounded-full font-bold shadow-lg transition-all duration-200 ${
+            isCartEmpty 
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300' 
+              : 'bg-[#f5e1d8] text-black hover:bg-[#e9cfc0]'
+          }`}
         >
           Beli
         </Button>

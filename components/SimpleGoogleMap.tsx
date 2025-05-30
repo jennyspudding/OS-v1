@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
+import { googleMapsLoader } from '../lib/google-maps-loader';
 
 interface SimpleGoogleMapProps {
   initialCenter?: { lat: number; lng: number };
@@ -38,7 +39,7 @@ function validateIndonesianCoordinates(lat: number, lng: number): boolean {
 }
 
 export default function SimpleGoogleMap({ 
-  initialCenter = { lat: -6.2088, lng: 106.8456 },
+  initialCenter = { lat: -6.1751, lng: 106.8650 }, // Central Jakarta (Menteng area)
   onLocationSelect,
   height = "300px",
   regionBounds
@@ -51,39 +52,40 @@ export default function SimpleGoogleMap({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [forceReload, setForceReload] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Auto-reload map when component mounts or when forced
+  // 🚀 ULTRA-FAST MAP INITIALIZATION - Load immediately with minimal delay
   useEffect(() => {
-    console.log('SimpleGoogleMap: Component mounted or force reload triggered');
-    loadGoogleMaps();
-  }, [forceReload]);
-
-  // Force reload when entering the page (triggered by parent component key change)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log('SimpleGoogleMap: Auto-reloading map after 500ms');
-      setForceReload(prev => prev + 1);
-    }, 500);
+    // Reset state for fresh initialization
+    setIsLoading(true);
+    setError(null);
+    setIsInitialized(false);
     
-    return () => clearTimeout(timer);
-  }, []);
+    // Immediate initialization - no delay
+    loadGoogleMaps();
+    
+    return () => {
+      // Cleanup any pending operations
+    };
+  }, []); // Only run once on mount
 
+  // 🎯 OPTIMIZED CENTER UPDATES - Faster handling when initialCenter changes
   useEffect(() => {
-    if (map && initialCenter) {
+    if (map && marker && initialCenter && isInitialized) {
+      // Quick center update without animation for speed
       map.setCenter(initialCenter);
-      if (marker) {
+      
+      // Direct marker position update
+      if (marker.position) {
         marker.position = initialCenter;
+      } else if (marker.setPosition) {
+        marker.setPosition(initialCenter);
       }
     }
-  }, [initialCenter, map, marker]);
+  }, [initialCenter, map, marker, isInitialized]);
 
-  const loadGoogleMaps = () => {
+  const loadGoogleMaps = async () => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    
-    console.log('Loading Google Maps... (Attempt:', retryCount + 1, ')');
-    console.log('API Key available:', apiKey ? 'Yes' : 'No');
     
     if (!apiKey) {
       setError('Google Maps API key not found');
@@ -91,92 +93,53 @@ export default function SimpleGoogleMap({
       return;
     }
 
-    // Reset error state when retrying
-    setError(null);
-
-    // Check if Google Maps is already loaded
-    if (window.google && window.google.maps) {
-      console.log('Google Maps already loaded');
+    try {
+      // Use centralized loader to prevent multiple API loads
+      await googleMapsLoader.loadGoogleMaps(apiKey);
       initializeMap();
-      return;
-    }
-
-    // Create unique callback function name to avoid conflicts
-    const callbackName = `initGoogleMap_${Date.now()}`;
-    (window as any)[callbackName] = () => {
-      console.log('Google Maps callback triggered');
-      initializeMap();
-      // Clean up callback
-      delete (window as any)[callbackName];
-    };
-
-    // Load Google Maps script
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geocoding,marker&loading=async&callback=${callbackName}`;
-    script.async = true;
-    script.defer = true;
-    
-    script.onerror = (error) => {
-      console.error('Failed to load Google Maps script:', error);
-      setError('Failed to load Google Maps. Please check your internet connection or API key.');
+    } catch (error) {
+      setError('Gagal memuat Google Maps. Periksa koneksi internet Anda.');
       setIsLoading(false);
-      // Clean up callback on error
-      delete (window as any)[callbackName];
-    };
-    
-    // Check if script with same src already exists
-    const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`);
-    if (existingScript) {
-      console.log('Google Maps script already exists, removing old one');
-      existingScript.remove();
     }
-    
-    document.head.appendChild(script);
-
-    // Timeout after 45 seconds with retry logic
-    setTimeout(() => {
-      if (isLoading) {
-        if (retryCount < 2) { // Allow up to 3 attempts
-          console.log('Google Maps loading timeout, retrying...');
-          setRetryCount(prev => prev + 1);
-          loadGoogleMaps();
-        } else {
-          console.log('Google Maps failed to load after 3 attempts');
-          setError('Google Maps gagal dimuat. Silakan refresh halaman.');
-          setIsLoading(false);
-        }
-      }
-    }, 45000);
   };
 
   const initializeMap = () => {
     try {
-      console.log('Initializing map...');
-      
       if (!mapRef.current) {
-        console.error('Map container not found');
-        setError('Map container not found');
+        setError('Map container tidak ditemukan');
         setIsLoading(false);
         return;
       }
 
       if (!window.google || !window.google.maps) {
-        console.error('Google Maps API not available');
-        setError('Google Maps API not available');
+        setError('Google Maps API tidak tersedia');
         setIsLoading(false);
         return;
       }
 
+      // Clear any existing map content
+      mapRef.current.innerHTML = '';
+
+      // 🚀 SIMPLIFIED MAP CONFIGURATION - Minimal options for faster loading
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         center: initialCenter,
         zoom: 13,
-        mapId: 'DEMO_MAP_ID', // Required for AdvancedMarkerElement
+        mapId: 'DEMO_MAP_ID',
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
+        gestureHandling: 'cooperative',
+        zoomControl: true,
+        zoomControlOptions: {
+          position: window.google.maps.ControlPosition.RIGHT_CENTER
+        },
+        // 🚀 PERFORMANCE OPTIMIZATIONS
+        disableDefaultUI: false,
+        clickableIcons: false, // Disable POI clicks for better performance
+        styles: [] // No custom styling for faster rendering
       });
 
-      // Create marker using AdvancedMarkerElement (new recommended approach)
+      // 🚀 SIMPLIFIED MARKER CREATION
       const markerInstance = new window.google.maps.marker.AdvancedMarkerElement({
         position: initialCenter,
         map: mapInstance,
@@ -184,7 +147,11 @@ export default function SimpleGoogleMap({
         title: 'Lokasi Pengiriman'
       });
 
-      // Add click listener
+      // Expose marker globally for coordinate access
+      (window as any).currentMapMarker = markerInstance;
+      console.log('🌐 Marker exposed globally for real-time coordinate access');
+
+      // 🚀 OPTIMIZED CLICK LISTENER - Minimal processing
       mapInstance.addListener('click', (event: any) => {
         if (event.latLng) {
           const position = {
@@ -192,92 +159,116 @@ export default function SimpleGoogleMap({
             lng: event.latLng.lng()
           };
           
-          // Validate coordinates are within Indonesia
+          // Quick validation
           if (!validateIndonesianCoordinates(position.lat, position.lng)) {
             alert('Lokasi yang dipilih berada di luar wilayah Indonesia. Silakan pilih lokasi di dalam wilayah Indonesia.');
             return;
           }
           
+          // Fast marker update
           markerInstance.position = position;
-          reverseGeocode(position);
+          
+          // Update global reference
+          (window as any).currentMapMarker = markerInstance;
+          console.log('🎯 Marker position updated globally:', position);
+          
+          // Lazy load reverse geocoding
+          setTimeout(() => reverseGeocode(position), 0);
         }
       });
 
-      // Add drag listener for AdvancedMarkerElement
-      markerInstance.addListener('dragend', (event: any) => {
+      // 🚀 OPTIMIZED DRAG LISTENER
+      markerInstance.addListener('dragend', () => {
         const position = markerInstance.position;
         if (position) {
           const coords = {
-            lat: position.lat,
-            lng: position.lng
+            lat: typeof position.lat === 'function' ? position.lat() : position.lat,
+            lng: typeof position.lng === 'function' ? position.lng() : position.lng
           };
           
-          // Validate coordinates are within Indonesia
+          // Quick validation
           if (!validateIndonesianCoordinates(coords.lat, coords.lng)) {
             alert('Lokasi yang dipilih berada di luar wilayah Indonesia. Silakan pilih lokasi di dalam wilayah Indonesia.');
-            // Reset marker to previous valid position
             markerInstance.position = initialCenter;
             return;
           }
           
-          reverseGeocode(coords);
+          // Update global reference
+          (window as any).currentMapMarker = markerInstance;
+          console.log('🎯 Marker position updated globally via drag:', coords);
+          
+          // Lazy load reverse geocoding
+          setTimeout(() => reverseGeocode(coords), 0);
         }
       });
 
-      // Initialize autocomplete with regional filtering
-      if (searchInputRef.current) {
-        // Create bounds for regional filtering if region data is available
-        let bounds = undefined;
-        if (regionBounds?.province && regionBounds?.city) {
-          // Define bounds for major Indonesian regions
-          const regionBoundsMap: { [key: string]: any } = {
-            'DKI JAKARTA': {
-              north: -6.0744,
-              south: -6.3676,
-              east: 107.0361,
-              west: 106.6794
-            },
-            'BANTEN': {
-              north: -5.7887,
-              south: -7.1055,
-              east: 106.9378,
-              west: 105.0194
-            },
-            'JAWA BARAT': {
-              north: -5.5000,
-              south: -7.8000,
-              east: 108.9500,
-              west: 105.0000
-            }
-          };
+      setMap(mapInstance);
+      setMarker(markerInstance);
+      setIsLoading(false);
+      setError(null);
+      setIsInitialized(true);
+      
+      // 🚀 LAZY LOAD SEARCH FUNCTIONALITY - Load after map is ready
+      setTimeout(() => {
+        loadSearchFeatures(mapInstance, markerInstance);
+      }, 100);
 
-          const regionKey = regionBounds.province.toUpperCase();
-          if (regionBoundsMap[regionKey]) {
-            const regionBound = regionBoundsMap[regionKey];
-            bounds = new window.google.maps.LatLngBounds(
-              new window.google.maps.LatLng(regionBound.south, regionBound.west),
-              new window.google.maps.LatLng(regionBound.north, regionBound.east)
-            );
-          }
+    } catch (error) {
+      setError('Terjadi kesalahan saat menginisialisasi peta');
+      setIsLoading(false);
+    }
+  };
+
+  // 🚀 LAZY LOAD SEARCH FEATURES - Load search functionality after map is ready
+  const loadSearchFeatures = async (mapInstance: any, markerInstance: any) => {
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) return;
+
+      // Since we now load all libraries at once, just check if places is available
+      if (window.google && window.google.maps && window.google.maps.places) {
+        console.log('Places library already available, setting up autocomplete...');
+        setupAutocomplete(mapInstance, markerInstance);
+        return;
+      }
+
+      // If not available, wait a bit and try again (libraries might still be initializing)
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      const checkPlaces = () => {
+        attempts++;
+        if (window.google && window.google.maps && window.google.maps.places) {
+          console.log(`Places library became available after ${attempts} attempts`);
+          setupAutocomplete(mapInstance, markerInstance);
+        } else if (attempts < maxAttempts) {
+          console.log(`Places library not ready, attempt ${attempts}/${maxAttempts}, retrying...`);
+          setTimeout(checkPlaces, 1000);
+        } else {
+          console.warn('Places library failed to load after maximum attempts');
         }
+      };
+      
+      checkPlaces();
 
-        const autocompleteOptions: any = {
+    } catch (error) {
+      // Search features failed to load, but map still works
+      console.warn('Search features failed to load:', error);
+    }
+  };
+
+  // Separate function to setup autocomplete
+  const setupAutocomplete = (mapInstance: any, markerInstance: any) => {
+    try {
+      if (searchInputRef.current && window.google.maps.places) {
+        const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
           componentRestrictions: { country: 'id' },
-          fields: ['place_id', 'geometry', 'name', 'formatted_address', 'address_components'],
+          fields: ['place_id', 'geometry', 'name', 'formatted_address'],
           types: ['establishment', 'geocode']
-        };
-
-        // Add bounds if available
-        if (bounds) {
-          autocompleteOptions.bounds = bounds;
-          autocompleteOptions.strictBounds = false; // Allow results outside bounds but prioritize within
-        }
-
-        const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, autocompleteOptions);
+        });
 
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
-          console.log('Place selected:', place);
           
           if (place.geometry?.location) {
             const position = {
@@ -285,9 +276,6 @@ export default function SimpleGoogleMap({
               lng: place.geometry.location.lng()
             };
             
-            console.log('Position from autocomplete:', position);
-            
-            // Validate coordinates are within Indonesia
             if (!validateIndonesianCoordinates(position.lat, position.lng)) {
               alert('Lokasi yang dipilih berada di luar wilayah Indonesia. Silakan pilih lokasi di dalam wilayah Indonesia.');
               return;
@@ -297,7 +285,9 @@ export default function SimpleGoogleMap({
             mapInstance.setZoom(17);
             markerInstance.position = position;
             
-            // Clear the search input after selection
+            if (searchInputRef.current) {
+              searchInputRef.current.value = '';
+            }
             setSearchValue('');
             
             onLocationSelect({
@@ -306,45 +296,68 @@ export default function SimpleGoogleMap({
             });
           }
         });
-
-        // Prevent zoom on input focus (mobile devices)
-        searchInputRef.current.addEventListener('focus', (e) => {
-          e.preventDefault();
-          // Prevent viewport zoom on mobile
-          if (window.innerWidth < 768) {
-            const viewport = document.querySelector('meta[name=viewport]');
-            if (viewport) {
-              const originalContent = viewport.getAttribute('content');
-              viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-              
-              // Restore original viewport after blur
-              const restoreViewport = () => {
-                if (originalContent) {
-                  viewport.setAttribute('content', originalContent);
-                }
-                searchInputRef.current?.removeEventListener('blur', restoreViewport);
-              };
-              searchInputRef.current?.addEventListener('blur', restoreViewport);
-            }
-          }
-        });
+        
+        console.log('Autocomplete setup completed successfully');
       }
-
-      setMap(mapInstance);
-      setMarker(markerInstance);
-      setIsLoading(false);
-      setError(null);
-      
-      console.log('Map initialized successfully');
-
     } catch (error) {
-      console.error('Error initializing map:', error);
-      setError('Error initializing map');
-      setIsLoading(false);
+      console.warn('Error setting up autocomplete:', error);
     }
   };
 
+  // 🚀 OPTIMIZED REVERSE GEOCODING - Lazy loaded with timeout
   const reverseGeocode = async (position: { lat: number; lng: number }) => {
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) {
+        onLocationSelect({
+          ...position,
+          address: `${position.lat}, ${position.lng}`
+        });
+        return;
+      }
+
+      // Since we now load all libraries at once, check if Geocoder is available
+      if (window.google && window.google.maps && window.google.maps.Geocoder) {
+        console.log('Geocoder already available, performing reverse geocoding...');
+        performReverseGeocode(position);
+        return;
+      }
+
+      // If not available, wait a bit and try again (libraries might still be initializing)
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      const checkGeocoder = () => {
+        attempts++;
+        if (window.google && window.google.maps && window.google.maps.Geocoder) {
+          console.log(`Geocoder became available after ${attempts} attempts`);
+          performReverseGeocode(position);
+        } else if (attempts < maxAttempts) {
+          console.log(`Geocoder not ready, attempt ${attempts}/${maxAttempts}, retrying...`);
+          setTimeout(checkGeocoder, 1000);
+        } else {
+          console.warn('Geocoder failed to load after maximum attempts, using coordinates');
+          onLocationSelect({
+            ...position,
+            address: `${position.lat}, ${position.lng}`
+          });
+        }
+      };
+      
+      checkGeocoder();
+
+    } catch (error) {
+      // Fallback to coordinates if geocoding fails
+      console.warn('Reverse geocoding error:', error);
+      onLocationSelect({
+        ...position,
+        address: `${position.lat}, ${position.lng}`
+      });
+    }
+  };
+
+  // Separate function to perform reverse geocoding
+  const performReverseGeocode = async (position: { lat: number; lng: number }) => {
     try {
       const geocoder = new window.google.maps.Geocoder();
       const response = await geocoder.geocode({
@@ -356,9 +369,14 @@ export default function SimpleGoogleMap({
           ...position,
           address: response.results[0].formatted_address
         });
+      } else {
+        onLocationSelect({
+          ...position,
+          address: `${position.lat}, ${position.lng}`
+        });
       }
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      console.warn('Geocoding request failed:', error);
       onLocationSelect({
         ...position,
         address: `${position.lat}, ${position.lng}`
@@ -366,6 +384,7 @@ export default function SimpleGoogleMap({
     }
   };
 
+  // 🚀 OPTIMIZED CURRENT LOCATION - Faster GPS access
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       alert('Geolocation tidak didukung oleh browser ini.');
@@ -381,72 +400,63 @@ export default function SimpleGoogleMap({
           lng: position.coords.longitude
         };
 
-        // Validate coordinates are within Indonesia
-        if (!validateIndonesianCoordinates(currentPos.lat, currentPos.lng)) {
-          alert('Lokasi Anda berada di luar wilayah Indonesia. Layanan pengiriman hanya tersedia di Indonesia.');
-          setIsGettingLocation(false);
-          return;
-        }
-
         if (map && marker) {
           map.setCenter(currentPos);
           map.setZoom(17);
           marker.position = currentPos;
-          reverseGeocode(currentPos);
+          // Lazy load reverse geocoding
+          setTimeout(() => reverseGeocode(currentPos), 0);
         }
 
         setIsGettingLocation(false);
       },
       (error) => {
-        console.error('Error getting location:', error);
         alert('Tidak dapat mengakses lokasi. Pastikan izin lokasi telah diberikan.');
         setIsGettingLocation(false);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
+        timeout: 5000, // Reduced timeout for faster response
+        maximumAge: 30000 // Reduced cache time
       }
     );
   };
 
+  // 🚀 SIMPLIFIED SEARCH HANDLER
   const handleSearch = () => {
     if (!searchValue.trim() || !map) return;
 
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode(
-      {
-        address: searchValue,
-        componentRestrictions: { country: 'id' }
-      },
-      (results: any, status: any) => {
-        if (status === 'OK' && results && results[0]) {
-          const location = results[0].geometry.location;
-          const position = {
-            lat: location.lat(),
-            lng: location.lng()
-          };
+    // Use basic geocoding for manual search
+    if (window.google && window.google.maps && window.google.maps.Geocoder) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode(
+        {
+          address: searchValue,
+          componentRestrictions: { country: 'id' }
+        },
+        (results: any, status: any) => {
+          if (status === 'OK' && results && results[0]) {
+            const location = results[0].geometry.location;
+            const position = {
+              lat: location.lat(),
+              lng: location.lng()
+            };
 
-          // Validate coordinates are within Indonesia
-          if (!validateIndonesianCoordinates(position.lat, position.lng)) {
-            alert('Lokasi yang ditemukan berada di luar wilayah Indonesia. Silakan cari alamat di dalam wilayah Indonesia.');
-            return;
+            map.setCenter(position);
+            map.setZoom(17);
+            if (marker) {
+              marker.position = position;
+            }
+            onLocationSelect({
+              ...position,
+              address: results[0].formatted_address
+            });
+          } else {
+            alert('Lokasi tidak ditemukan. Coba dengan alamat yang lebih spesifik.');
           }
-
-          map.setCenter(position);
-          // Don't auto-zoom to maintain current zoom level
-          if (marker) {
-            marker.position = position;
-          }
-          onLocationSelect({
-            ...position,
-            address: results[0].formatted_address
-          });
-        } else {
-          alert('Lokasi tidak ditemukan. Coba dengan alamat yang lebih spesifik.');
         }
-      }
-    );
+      );
+    }
   };
 
   return (
@@ -498,8 +508,12 @@ export default function SimpleGoogleMap({
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder="Cari alamat lengkap Anda..."
-              className="flex-1 px-3 py-2 text-sm focus:outline-none"
+              className="flex-1 px-3 py-2 text-sm focus:outline-none bg-white text-gray-900"
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              autoComplete="off"
+              spellCheck="false"
+              autoCorrect="off"
+              autoCapitalize="off"
               onFocus={(e) => {
                 // Prevent mobile zoom on input focus
                 e.target.style.fontSize = '16px';

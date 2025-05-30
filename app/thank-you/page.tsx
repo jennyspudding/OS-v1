@@ -2,9 +2,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { useCart } from '@/components/CartContext';
 
 export default function ThankYouPage() {
   const router = useRouter();
+  const { clearCart } = useCart();
   const [orderData, setOrderData] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
@@ -43,7 +45,9 @@ export default function ThankYouPage() {
     sessionStorage.removeItem('customerSessionData');
     sessionStorage.removeItem('currentOrder');
     
-    // Clear the cart since order was successfully sent
+    // Clear the cart using context method (more reliable)
+    clearCart();
+    // Also clear from storage as backup
     sessionStorage.removeItem('cart');
     localStorage.removeItem('cart');
     

@@ -235,7 +235,7 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
             value={specialRequest}
             onChange={e => setSpecialRequest(e.target.value)}
             placeholder="Type here (optional)"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#b48a78] text-xs"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#b48a78] text-xs bg-white"
             maxLength={200}
             inputMode="text"
             style={{ fontSize: 16 }}
@@ -258,6 +258,7 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
                           : prev.filter(id => id !== addOn.id)
                       );
                     }}
+                    className="bg-white"
                   />
                   <span>{addOn.name}</span>
                 </div>

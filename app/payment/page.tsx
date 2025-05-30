@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { insertCompleteOrder, uploadPaymentProof, updateOrderStatus, updateOrderStatusByUuid } from "@/lib/supabase";
 import { testSupabaseConnection, validateOrderData } from "@/lib/test-supabase";
+import { useCart } from "@/components/CartContext";
 
 function formatRupiah(num: number) {
   return "Rp" + num.toLocaleString("id-ID");
@@ -50,6 +51,7 @@ async function copyToClipboard(text: string, successMessage: string) {
 
 export default function PaymentPage() {
   const router = useRouter();
+  const { clearCart } = useCart();
   const [order, setOrder] = useState<any>(null);
   const [orderId, setOrderId] = useState<string>("");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -119,6 +121,14 @@ export default function PaymentPage() {
       // Save final order data with order_id for thank you page
       const finalOrderData = { ...orderData, uuid: orderUuid, paymentProofUrl };
       localStorage.setItem('completeOrderData', JSON.stringify(finalOrderData));
+      
+      // 🛒 CLEAR CART IMMEDIATELY AFTER SUCCESSFUL ORDER SUBMISSION
+      // Use the context method to properly clear cart state
+      clearCart();
+      // Also clear from storage as backup
+      sessionStorage.removeItem('cart');
+      localStorage.removeItem('cart');
+      console.log('Cart cleared after successful order submission');
       
       setSubmitting(false);
       showToast(`Pesanan ${orderId} berhasil dikonfirmasi! Terima kasih.`, 'success');
@@ -374,7 +384,7 @@ export default function PaymentPage() {
                 accept="image/*" 
                 ref={fileInputRef} 
                 onChange={handleFileChange} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent text-black file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-black hover:file:bg-gray-100"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-900 hover:file:bg-gray-100"
               />
               {errors.proof && <div className="text-xs text-red-500 mt-1">{errors.proof}</div>}
               {proofFile && (

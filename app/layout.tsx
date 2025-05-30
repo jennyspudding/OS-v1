@@ -1,42 +1,94 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Poppins, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/CartContext";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import IOSInstallInstructions from "@/components/IOSInstallInstructions";
+import ConditionalWhatsAppButton from "@/components/ConditionalWhatsAppButton";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: 'swap',
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  variable: "--font-poppins",
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "Jenny's Pudding - Delicious Cakes & Puddings",
-  description: "Premium cakes, puddings, and desserts delivered fresh to your door",
+  title: "Jenny's Pudding - Premium Cakes & Puddings",
+  description: "Premium artisanal cakes, puddings, and desserts crafted with love and delivered fresh to your door. Experience the finest taste in every bite.",
+  keywords: "premium cakes, artisanal puddings, desserts, bakery, fresh delivery, Indonesian pastries",
+  authors: [{ name: "Jenny's Pudding" }],
+  creator: "Jenny's Pudding",
+  publisher: "Jenny's Pudding",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Jenny's Pudding",
+    startupImage: "/icons/apple-icon-180.png",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
+    locale: "id_ID",
+    url: "https://jennys-pudding.com",
     siteName: "Jenny's Pudding",
-    title: "Jenny's Pudding - Delicious Cakes & Puddings",
-    description: "Premium cakes, puddings, and desserts delivered fresh to your door",
+    title: "Jenny's Pudding - Premium Cakes & Puddings",
+    description: "Premium artisanal cakes, puddings, and desserts crafted with love and delivered fresh to your door.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Jenny's Pudding - Premium Desserts",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "Jenny's Pudding - Delicious Cakes & Puddings",
-    description: "Premium cakes, puddings, and desserts delivered fresh to your door",
+    card: "summary_large_image",
+    title: "Jenny's Pudding - Premium Cakes & Puddings",
+    description: "Premium artisanal cakes, puddings, and desserts crafted with love and delivered fresh to your door.",
+    images: ["/og-image.jpg"],
+    creator: "@jennyspudding",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#b48a78' },
+    { media: '(prefers-color-scheme: dark)', color: '#8b6f47' }
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -45,7 +97,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="id" className={`${inter.variable} ${poppins.variable} ${playfair.variable}`}>
       <head>
         <link rel="apple-touch-icon" href="/icons/apple-icon-180.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -53,7 +105,14 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Jenny's Pudding" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
-        <meta name="msapplication-TileColor" content="#ffffff" />
+        <meta name="msapplication-TileColor" content="#b48a78" />
+        
+        {/* Preconnect to optimize font loading */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* DNS Prefetch for better performance */}
+        <link rel="dns-prefetch" href="//www.google-analytics.com" />
         
         {/* Apple Splash Screens */}
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-2048-2732.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
@@ -95,12 +154,20 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-640-1136.jpg" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-1136-640.jpg" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <CartProvider>
-          {children}
-          <PWAInstallPrompt />
-          <IOSInstallInstructions />
-        </CartProvider>
+      <body className={`${inter.variable} font-sans antialiased bg-gradient-to-br from-[#ffe9ea] via-[#fef3f3] to-[#fff0f1] text-neutral-900 min-h-screen`}>
+        <div className="relative min-h-screen">
+          {/* Background Pattern */}
+          <div className="fixed inset-0 bg-[radial-gradient(circle_at_25%_25%,_rgba(180,138,120,0.05)_0%,_transparent_50%),_radial-gradient(circle_at_75%_75%,_rgba(212,165,116,0.05)_0%,_transparent_50%)] pointer-events-none" />
+          
+          <CartProvider>
+            <div className="relative z-10">
+              {children}
+            </div>
+            <PWAInstallPrompt />
+            <IOSInstallInstructions />
+            <ConditionalWhatsAppButton />
+          </CartProvider>
+        </div>
       </body>
     </html>
   );
