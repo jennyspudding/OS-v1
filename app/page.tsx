@@ -637,31 +637,61 @@ export default function Home() {
         <section className="relative py-2 md:py-4">
           <div className="max-w-7xl mx-auto px-3 md:px-8">
             <div className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-3 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0">
-              {categories.map((cat) => (
-                <div key={cat.id} className="flex flex-col items-center snap-start min-w-[72px]">
-                  <button
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
-                  >
-                    {cat.icon_url ? (
-                      <Image 
-                        src={cat.icon_url} 
-                        alt={cat.name} 
-                        width={56} 
-                        height={56}
-                        className="rounded-2xl object-cover w-14 h-14 md:w-16 md:h-16" 
-                      />
-                    ) : (
-                      <div className="w-14 h-14 bg-[#b48a78]/10 rounded-2xl flex items-center justify-center md:w-16 md:h-16">
-                        <span className="text-xl md:text-2xl">🍮</span>
-                      </div>
-                    )}
-                  </button>
-                  <span className="text-xs font-medium text-center font-brand max-w-[72px] leading-tight text-[#b48a78] md:text-sm">
-                    {cat.name}
-                  </span>
-                </div>
-              ))}
+              
+              {/* Express Store - First Category Item */}
+              <div className="flex flex-col items-center snap-start min-w-[72px]">
+                <Link 
+                  href="/express-store"
+                  className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
+                >
+                  <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center md:w-16 md:h-16 shadow-lg border-2 border-amber-300/50 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+                    <span className="text-xl md:text-2xl animate-pulse">⚡</span>
+                  </div>
+                  {/* Express Badge */}
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold text-[8px] md:text-[10px] animate-bounce">
+                    NEW
+                  </div>
+                </Link>
+                <span className="text-xs font-medium text-center font-brand max-w-[72px] leading-tight text-amber-600 md:text-sm font-bold">
+                  Express
+                </span>
+              </div>
+
+              {/* Regular Categories */}
+              {isLoadingCategories ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center snap-start min-w-[72px]">
+                    <div className="w-14 h-14 bg-gray-200 rounded-2xl animate-pulse md:w-16 md:h-16 mb-1"></div>
+                    <div className="w-12 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                ))
+              ) : (
+                categories.map((cat) => (
+                  <div key={cat.id} className="flex flex-col items-center snap-start min-w-[72px]">
+                    <button
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
+                    >
+                      {cat.icon_url ? (
+                        <Image 
+                          src={cat.icon_url} 
+                          alt={cat.name} 
+                          width={56} 
+                          height={56}
+                          className="rounded-2xl object-cover w-14 h-14 md:w-16 md:h-16" 
+                        />
+                      ) : (
+                        <div className="w-14 h-14 bg-[#b48a78]/10 rounded-2xl flex items-center justify-center md:w-16 md:h-16">
+                          <span className="text-xl md:text-2xl">🍮</span>
+                        </div>
+                      )}
+                    </button>
+                    <span className="text-xs font-medium text-center font-brand max-w-[72px] leading-tight text-[#b48a78] md:text-sm">
+                      {cat.name}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </section>

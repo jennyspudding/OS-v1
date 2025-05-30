@@ -13,6 +13,8 @@ export interface CartItem {
   discount?: number;
   addOns?: { id: string; name: string; price: number }[];
   specialRequest?: string;
+  isExpress?: boolean;
+  source?: 'express' | 'regular';
 }
 
 export interface CartState {
