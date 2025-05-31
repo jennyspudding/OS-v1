@@ -21,59 +21,20 @@ export default function ExpressCartPage() {
     <div className="min-h-screen relative">
       {/* Header */}
       <header className="sticky top-0 z-20 glass-navbar backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
-        <div className="flex items-center justify-between px-4 py-3 md:px-8 relative">
-          {/* Mobile: Centered Logo */}
-          <div className="flex items-center gap-3 flex-1 justify-center md:hidden">
-            <div className="relative">
-              <Image 
-                src="/logo.png" 
-                alt="Jenny's Pudding Logo" 
-                width={42} 
-                height={42} 
-                className="rounded-full" 
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold text-premium font-brand tracking-tight">
-                Jenny's Pudding
-              </span>
-              <span className="text-xs text-[#b48a78]/70 font-medium">
-                Express Cart
-              </span>
-            </div>
-          </div>
-          
-          {/* Desktop: Centered Logo */}
-          <div className="hidden md:flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
-            <div className="relative">
-              <Image 
-                src="/logo.png" 
-                alt="Jenny's Pudding Logo" 
-                width={56} 
-                height={56} 
-                className="rounded-full" 
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold text-premium font-brand tracking-tight">
-                Jenny's Pudding
-              </span>
-              <span className="text-sm text-[#b48a78]/70 font-medium">
-                Express Cart
-              </span>
-            </div>
-          </div>
-
+        <div className="flex items-center justify-between px-4 py-3 md:px-8">
           {/* Back Button */}
-          <Link href="/express-store" className="flex items-center gap-2 text-[#b48a78] hover:text-[#8b5a3c] transition-colors md:absolute md:left-4">
+          <Link href="/express-store" className="flex items-center gap-2 text-[#b48a78] hover:text-[#8b5a3c] transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="font-medium hidden md:inline">Kembali ke Express Store</span>
+            <span className="font-medium">Kembali</span>
           </Link>
+
+          {/* Title */}
+          <h1 className="text-lg font-bold text-[#b48a78] font-display">Keranjang Express</h1>
           
           {/* Express Badge */}
-          <div className="ml-auto flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
             <span className="text-[#b48a78] animate-pulse">⚡</span>
             <span className="text-sm font-medium text-[#8b6f47]">Express</span>
           </div>
