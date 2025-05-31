@@ -55,6 +55,7 @@ function ExpressCustomerInfoContent() {
   const [isMockQuotation, setIsMockQuotation] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [vehicleType, setVehicleType] = useState<'MOTORCYCLE' | 'CAR'>('MOTORCYCLE');
+  const [useTollRoad, setUseTollRoad] = useState(false);
   const [requestedDateTime, setRequestedDateTime] = useState('');
   const [alamatLengkap, setAlamatLengkap] = useState('');
   const [promoInput, setPromoInput] = useState("");
@@ -379,8 +380,8 @@ function ExpressCustomerInfoContent() {
   useEffect(() => {
     // Auto-calculate if we have location, data is loaded, no existing quotation, not loading, and component is mounted
     if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current) {
-      console.log('Auto-calculating delivery cost for location with MOTORCYCLE');
-      setVehicleType('MOTORCYCLE');
+      console.log('Auto-calculating delivery cost for location with current vehicle type and toll state');
+      // setVehicleType('MOTORCYCLE'); // Vehicle type should be determined or defaulted elsewhere if needed
       
       // Clear any existing timeout
       if (quotationTimeoutRef.current) {
@@ -393,7 +394,7 @@ function ExpressCustomerInfoContent() {
           console.log('Skipping auto-calculation: conditions changed');
           return;
         }
-        getDeliveryQuotationWithVehicleType('MOTORCYCLE');
+        getDeliveryQuotationWithVehicleType(vehicleType, useTollRoad); // Pass current vehicleType and useTollRoad state
       }, 1500);
       
       // Cleanup timeout on dependency change
@@ -404,7 +405,7 @@ function ExpressCustomerInfoContent() {
         }
       };
     }
-  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation]);
+  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation, vehicleType, useTollRoad]); // Added vehicleType and useTollRoad
 
   useEffect(() => {
     // Prevent repeated processing of URL params
@@ -545,14 +546,18 @@ function ExpressCustomerInfoContent() {
 
   // Function to get delivery quotation using precise coordinates ONLY
   const getDeliveryQuotation = async () => {
-    console.log('getDeliveryQuotation called - delegating to getDeliveryQuotationWithVehicleType with MOTORCYCLE default');
-    return getDeliveryQuotationWithVehicleType('MOTORCYCLE');
+    console.log('EXPRESS: getDeliveryQuotation called - delegating to getDeliveryQuotationWithVehicleType with MOTORCYCLE default and current toll state');
+    return getDeliveryQuotationWithVehicleType('MOTORCYCLE', useTollRoad); // Pass current useTollRoad state
   };
 
   // Handle vehicle type change and auto-recalculate
   const handleVehicleTypeChange = (newVehicleType: 'MOTORCYCLE' | 'CAR') => {
     console.log('Vehicle type changed from', vehicleType, 'to', newVehicleType);
     setVehicleType(newVehicleType);
+    
+    // Always reset toll road option to false when vehicle type changes.
+    const newUseTollRoadState = false;
+    setUseTollRoad(newUseTollRoadState);
     
     // Auto-recalculate delivery cost when vehicle type changes
     if (selectedLocation && !isLoadingQuotation && isMountedRef.current) {
@@ -567,14 +572,37 @@ function ExpressCustomerInfoContent() {
           return;
         }
         console.log('Auto-calculating delivery cost for vehicle type:', newVehicleType);
-        getDeliveryQuotationWithVehicleType(newVehicleType);
+        getDeliveryQuotationWithVehicleType(newVehicleType, newUseTollRoadState); // Pass new toll state (false)
+      }, 500);
+    }
+  };
+
+  // Handle toll road option change and auto-recalculate
+  const handleTollRoadChange = (useToll: boolean) => {
+    console.log('🚀 EXPRESS: Toll road option changed to:', useToll);
+    setUseTollRoad(useToll);
+    
+    // Auto-recalculate delivery cost when toll option changes
+    if (selectedLocation && !isLoadingQuotation && isMountedRef.current && vehicleType === 'CAR') {
+      // Clear any existing timeout
+      if (quotationTimeoutRef.current) {
+        clearTimeout(quotationTimeoutRef.current);
+      }
+      
+      quotationTimeoutRef.current = setTimeout(() => {
+        // Double-check component is still mounted and conditions are valid
+        if (!isMountedRef.current || isLoadingQuotation) {
+          return;
+        }
+        console.log('🚀 EXPRESS: Auto-calculating delivery cost with toll road option:', useToll);
+        getDeliveryQuotationWithVehicleType(vehicleType, useToll); // Pass the 'useToll' status explicitly
       }, 500);
     }
   };
 
   // Function to get delivery quotation with specific vehicle type
-  const getDeliveryQuotationWithVehicleType = async (specificVehicleType?: 'MOTORCYCLE' | 'CAR') => {
-    console.log('🚀 EXPRESS: getDeliveryQuotationWithVehicleType called with:', specificVehicleType);
+  const getDeliveryQuotationWithVehicleType = async (specificVehicleType: 'MOTORCYCLE' | 'CAR', currentUseTollRoad: boolean) => {
+    console.log('🚀 EXPRESS: getDeliveryQuotationWithVehicleType called with:', specificVehicleType, 'and toll:', currentUseTollRoad);
     
     // Check if component is still mounted
     if (!isMountedRef.current) {
@@ -629,7 +657,7 @@ function ExpressCustomerInfoContent() {
     }
 
     const currentVehicleType = specificVehicleType || vehicleType;
-    console.log('🎯 EXPRESS: Using coordinates for LaLaMove quotation:', { deliveryAddress, coordinates, vehicleType: currentVehicleType });
+    console.log('🎯 EXPRESS: Using coordinates for LaLaMove quotation:', { deliveryAddress, coordinates, vehicleType: currentVehicleType, useTollRoad: currentUseTollRoad });
 
     setIsLoadingQuotation(true);
     setQuotationError(null);
@@ -640,6 +668,7 @@ function ExpressCustomerInfoContent() {
         recipientName: formData.recipientName || formData.name || 'Express Customer',
         recipientPhone: formData.recipientPhone || formData.phone || '+62123456789',
         serviceType: currentVehicleType,
+        useTollRoad: currentUseTollRoad, // Use the passed parameter
         // Add express flag to API call
         isExpress: true,
         orderType: 'express'
@@ -870,6 +899,7 @@ function ExpressCustomerInfoContent() {
         quotationError,
         requestedDateTime,
         vehicleType,
+        useTollRoad, // Add useTollRoad to the order data
         cart: {
           ...cart,
           items: expressItems // Only save express items
@@ -1302,7 +1332,7 @@ function ExpressCustomerInfoContent() {
                   id="useSameName"
                   checked={useSameName}
                   onChange={(e) => handleUseSameNameChange(e.target.checked)}
-                  className="w-4 h-4 text-[#b48a78] bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
                 />
                 <label htmlFor="useSameName" className="ml-2 text-sm text-gray-600">
                   Gunakan nama yang sama
@@ -1331,7 +1361,7 @@ function ExpressCustomerInfoContent() {
                   id="useSamePhone"
                   checked={useSamePhone}
                   onChange={(e) => handleUseSamePhoneChange(e.target.checked)}
-                  className="w-4 h-4 text-[#b48a78] bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
                 />
                 <label htmlFor="useSamePhone" className="ml-2 text-sm text-gray-600">
                   Gunakan nomor telepon yang sama
@@ -1611,8 +1641,8 @@ function ExpressCustomerInfoContent() {
                     onClick={() => handleVehicleTypeChange('MOTORCYCLE')}
                     className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
                       vehicleType === 'MOTORCYCLE'
-                        ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
+                        ? 'border-[#b48a78] bg-[#b48a78]/10 text-[#b48a78]'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#b48a78]'
                     }`}
                   >
                     <div className="flex items-center justify-center">
@@ -1621,15 +1651,15 @@ function ExpressCustomerInfoContent() {
                       </svg>
                       <span className="font-medium">Motor</span>
                     </div>
-                    <div className="text-xs mt-1">lebih cepat & hemat, tidak ada garansi dalam pengiriman</div>
+                    <div className="text-xs mt-1">lebih cepat & hemat, tidak ada garansi</div>
                   </button>
                   
                   <button
                     onClick={() => handleVehicleTypeChange('CAR')}
                     className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
                       vehicleType === 'CAR'
-                        ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
+                        ? 'border-[#b48a78] bg-[#b48a78]/10 text-[#b48a78]'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#b48a78]'
                     }`}
                   >
                     <div className="flex items-center justify-center">
@@ -1638,9 +1668,29 @@ function ExpressCustomerInfoContent() {
                       </svg>
                       <span className="font-medium">Mobil</span>
                     </div>
-                    <div className="text-xs mt-1">kapasitas besar, untuk pudding dekorasi, dijamin aman</div>
+                    <div className="text-xs mt-1">kapasitas besar, dijamin aman</div>
                   </button>
                 </div>
+
+                {/* Toll Road Option - Only show for Car */}
+                {vehicleType === 'CAR' && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useTollRoad}
+                        onChange={(e) => handleTollRoadChange(e.target.checked)}
+                        className="w-4 h-4 accent-white bg-white border border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-gray-700">🚗 Pakai Tol</span>
+                        <div className="text-xs text-gray-500 mt-1">
+                          +Rp 25.000 - Pengiriman lebih cepat melalui jalan tol (Perkiraan Biaya Tol)
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
               
               {quotationError && (
@@ -1699,6 +1749,7 @@ function ExpressCustomerInfoContent() {
                               <span className="text-gray-600">Jenis Kendaraan:</span>
                               <span className="text-gray-800">
                                 {vehicleType === 'MOTORCYCLE' ? 'Motor' : 'Mobil'}
+                                {deliveryQuotation.hasTollRoad && ' + Tol'}
                               </span>
                             </div>
                           </div>

@@ -54,6 +54,7 @@ function CustomerInfoContent() {
   const [isMockQuotation, setIsMockQuotation] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [vehicleType, setVehicleType] = useState<'MOTORCYCLE' | 'CAR'>('MOTORCYCLE');
+  const [useTollRoad, setUseTollRoad] = useState(false);
   const [requestedDateTime, setRequestedDateTime] = useState('');
   const [alamatLengkap, setAlamatLengkap] = useState('');
   const [promoInput, setPromoInput] = useState("");
@@ -323,24 +324,23 @@ function CustomerInfoContent() {
   useEffect(() => {
     // Auto-calculate if we have location, data is loaded, no existing quotation, not loading, and component is mounted
     if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current) {
-      console.log('Auto-calculating delivery cost for location with MOTORCYCLE');
-      setVehicleType('MOTORCYCLE');
+      console.log('Auto-calculating delivery cost for location with MOTORCYCLE (default no toll)');
+      // setVehicleType('MOTORCYCLE'); // This might be redundant if vehicleType defaults correctly or is set by other flows
       
-      // Clear any existing timeout
       if (quotationTimeoutRef.current) {
         clearTimeout(quotationTimeoutRef.current);
       }
       
       quotationTimeoutRef.current = setTimeout(() => {
-        // Triple-check all conditions before making the call
         if (!isMountedRef.current || isLoadingQuotation || deliveryQuotation) {
           console.log('Skipping auto-calculation: conditions changed');
           return;
         }
-        getDeliveryQuotationWithVehicleType('MOTORCYCLE');
+        // Assuming 'MOTORCYCLE' does not use toll, or rely on useTollRoad state which is false by default.
+        // For clarity, pass 'false' as the toll status for this initial auto-calculation.
+        getDeliveryQuotationWithVehicleType(vehicleType === 'CAR' ? 'CAR' : 'MOTORCYCLE', useTollRoad);
       }, 1500);
       
-      // Cleanup timeout on dependency change
       return () => {
         if (quotationTimeoutRef.current) {
           clearTimeout(quotationTimeoutRef.current);
@@ -348,7 +348,7 @@ function CustomerInfoContent() {
         }
       };
     }
-  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation]);
+  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation, vehicleType, useTollRoad]); // Added vehicleType and useTollRoad to dependencies for correctness
 
   useEffect(() => {
     // Prevent repeated processing of URL params
@@ -489,14 +489,19 @@ function CustomerInfoContent() {
 
   // Function to get delivery quotation using precise coordinates ONLY
   const getDeliveryQuotation = async () => {
-    console.log('getDeliveryQuotation called - delegating to getDeliveryQuotationWithVehicleType with MOTORCYCLE default');
-    return getDeliveryQuotationWithVehicleType('MOTORCYCLE');
+    console.log('getDeliveryQuotation called - delegating to getDeliveryQuotationWithVehicleType with MOTORCYCLE default and current toll state');
+    // Pass the current useTollRoad state. MOTORCYCLE type will likely ignore it or backend handles it.
+    return getDeliveryQuotationWithVehicleType('MOTORCYCLE', useTollRoad);
   };
 
   // Handle vehicle type change and auto-recalculate
   const handleVehicleTypeChange = (newVehicleType: 'MOTORCYCLE' | 'CAR') => {
     console.log('Vehicle type changed from', vehicleType, 'to', newVehicleType);
     setVehicleType(newVehicleType);
+    
+    // Always reset toll road option to false when vehicle type changes.
+    const newUseTollRoadState = false;
+    setUseTollRoad(newUseTollRoadState);
     
     // Auto-recalculate delivery cost when vehicle type changes
     if (selectedLocation && !isLoadingQuotation && isMountedRef.current) {
@@ -511,14 +516,38 @@ function CustomerInfoContent() {
           return;
         }
         console.log('Auto-calculating delivery cost for vehicle type:', newVehicleType);
-        getDeliveryQuotationWithVehicleType(newVehicleType);
+        getDeliveryQuotationWithVehicleType(newVehicleType, newUseTollRoadState); // Pass the new toll state (false)
+      }, 500);
+    }
+  };
+
+  // Handle toll road option change and auto-recalculate
+  const handleTollRoadChange = (useToll: boolean) => {
+    console.log('Toll road option changed to:', useToll);
+    setUseTollRoad(useToll);
+    
+    // Auto-recalculate delivery cost when toll option changes
+    if (selectedLocation && !isLoadingQuotation && isMountedRef.current && vehicleType === 'CAR') {
+      // Clear any existing timeout
+      if (quotationTimeoutRef.current) {
+        clearTimeout(quotationTimeoutRef.current);
+      }
+      
+      quotationTimeoutRef.current = setTimeout(() => {
+        // Double-check component is still mounted and conditions are valid
+        if (!isMountedRef.current || isLoadingQuotation) {
+          return;
+        }
+        console.log('Auto-calculating delivery cost with toll road option:', useToll);
+        // Pass the 'useToll' status explicitly
+        getDeliveryQuotationWithVehicleType(vehicleType, useToll);
       }, 500);
     }
   };
 
   // Function to get delivery quotation with specific vehicle type
-  const getDeliveryQuotationWithVehicleType = async (specificVehicleType?: 'MOTORCYCLE' | 'CAR') => {
-    console.log('getDeliveryQuotationWithVehicleType called with:', specificVehicleType);
+  const getDeliveryQuotationWithVehicleType = async (specificVehicleType: 'MOTORCYCLE' | 'CAR', currentUseTollRoad: boolean) => {
+    console.log('getDeliveryQuotationWithVehicleType called with:', specificVehicleType, 'and toll:', currentUseTollRoad);
     
     // Check if component is still mounted
     if (!isMountedRef.current) {
@@ -552,7 +581,8 @@ function CustomerInfoContent() {
         deliveryAddress,
         recipientName: formData.recipientName || formData.name || 'Customer',
         recipientPhone: formData.recipientPhone || formData.phone || '+62123456789',
-        serviceType: currentVehicleType
+        serviceType: currentVehicleType,
+        useTollRoad: currentUseTollRoad // Use the passed parameter
       };
 
       // Add precise coordinates if available
@@ -748,6 +778,7 @@ function CustomerInfoContent() {
         quotationError,
         requestedDateTime,
         vehicleType,
+        useTollRoad, // Add useTollRoad to the order data
         cart: cart,
         cartTotal: cartTotal,
         deliveryTotal: deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0,
@@ -873,11 +904,11 @@ function CustomerInfoContent() {
       };
     }
     
-    // Check if selecting tomorrow but it's after 15:00 today (should be H+2)
-    if (selectedDateOnly.getTime() === tomorrowOnly.getTime() && currentHour >= 15) {
+    // Check if selecting tomorrow but it's after 12:00 today (should be H+2)
+    if (selectedDateOnly.getTime() === tomorrowOnly.getTime() && currentHour >= 12) {
       return {
         valid: false,
-        warning: '⚠️ Pesanan setelah jam 15:00 hanya tersedia untuk pengiriman H+2. Silakan pilih tanggal lain.'
+        warning: '⚠️ Pesanan setelah jam 12:00 hanya tersedia untuk pengiriman H+2. Silakan pilih tanggal lain.'
       };
     }
     
@@ -897,6 +928,31 @@ function CustomerInfoContent() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(11, 0, 0, 0); // Default to 11:00 AM tomorrow
+    // For auto-calculation, ensure vehicleType and the current useTollRoad state are passed.
+    // As useTollRoad defaults to false, and vehicleType to MOTORCYCLE in some auto-calc paths.
+    if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current) {
+      console.log('Auto-calculating delivery cost for location with MOTORCYCLE and no toll');
+      // setVehicleType('MOTORCYCLE'); // Vehicle type is already set or will be 'MOTORCYCLE' by default path
+      
+      if (quotationTimeoutRef.current) {
+        clearTimeout(quotationTimeoutRef.current);
+      }
+      
+      quotationTimeoutRef.current = setTimeout(() => {
+        if (!isMountedRef.current || isLoadingQuotation || deliveryQuotation) {
+          console.log('Skipping auto-calculation: conditions changed');
+          return;
+        }
+        getDeliveryQuotationWithVehicleType('MOTORCYCLE', false); // Explicitly false for initial auto-calc
+      }, 1500);
+      
+      return () => {
+        if (quotationTimeoutRef.current) {
+          clearTimeout(quotationTimeoutRef.current);
+          quotationTimeoutRef.current = null;
+        }
+      };
+    }
     return tomorrow.toISOString().slice(0, 16);
   };
 
@@ -1054,7 +1110,7 @@ function CustomerInfoContent() {
                   id="useSameName"
                   checked={useSameName}
                   onChange={(e) => handleUseSameNameChange(e.target.checked)}
-                  className="w-4 h-4 text-[#d63384] bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
                 />
                 <label htmlFor="useSameName" className="ml-2 text-sm text-gray-600">
                   Gunakan nama yang sama
@@ -1083,7 +1139,7 @@ function CustomerInfoContent() {
                   id="useSamePhone"
                   checked={useSamePhone}
                   onChange={(e) => handleUseSamePhoneChange(e.target.checked)}
-                  className="w-4 h-4 text-[#d63384] bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
                 />
                 <label htmlFor="useSamePhone" className="ml-2 text-sm text-gray-600">
                   Gunakan nomor telepon yang sama
@@ -1197,7 +1253,7 @@ function CustomerInfoContent() {
                   </div>
                 </div>
                 
-                <p className="text-xs text-gray-500 mt-1">Pengiriman tersedia besok (H+1) jam 11:00 - 16:00 WIB</p>
+                <p className="text-xs text-gray-500 mt-1">Pengiriman tersedia besok (H+1) jam 11:00 - 16:00 WIB untuk order sebelum jam 12.00 hari ini</p>
                 
                 {/* Validation Warning */}
                 {deliveryTimeWarning && (
@@ -1383,6 +1439,26 @@ function CustomerInfoContent() {
                     <div className="text-xs mt-1">kapasitas besar, untuk pudding dekorasi, dijamin aman</div>
                   </button>
                 </div>
+                
+                {/* Toll Road Option - Only show for Car */}
+                {vehicleType === 'CAR' && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useTollRoad}
+                        onChange={(e) => handleTollRoadChange(e.target.checked)}
+                        className="w-4 h-4 accent-white bg-white border border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-gray-700">🚗 Pakai Tol</span>
+                        <div className="text-xs text-gray-500 mt-1">
+                          +Rp 25.000 - Pengiriman lebih cepat melalui jalan tol
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
               
               {quotationError && (
@@ -1441,6 +1517,7 @@ function CustomerInfoContent() {
                               <span className="text-gray-600">Jenis Kendaraan:</span>
                               <span className="text-gray-800">
                                 {vehicleType === 'MOTORCYCLE' ? 'Motor' : 'Mobil'}
+                                {deliveryQuotation.hasTollRoad && ' + Tol'}
                               </span>
                             </div>
                           </div>
@@ -1594,15 +1671,15 @@ function CustomerInfoContent() {
                   <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <div className="font-medium text-gray-900">Batas Waktu Pemesanan</div>
-                    <div className="text-sm text-gray-600">Pesanan untuk pengiriman H+1 maksimal dibuat jam 15:00</div>
+                    <div className="text-sm text-gray-600">Pesanan untuk pengiriman H+1 maksimal dibuat jam 12:00</div>
                   </div>
                 </div>
 
                 <div className="flex items-start">
                   <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Setelah Jam 15:00</div>
-                    <div className="text-sm text-gray-600">Pesanan setelah jam 15:00 hanya tersedia untuk pengiriman H+2</div>
+                    <div className="font-medium text-gray-900">Setelah Jam 12:00</div>
+                    <div className="text-sm text-gray-600">Pesanan setelah jam 12:00 hanya tersedia untuk pengiriman H+2</div>
                   </div>
                 </div>
 
@@ -1644,5 +1721,5 @@ export default function CustomerInfoPage() {
     }>
       <CustomerInfoContent />
     </Suspense>
-  );
-} 
+  ); 
+}

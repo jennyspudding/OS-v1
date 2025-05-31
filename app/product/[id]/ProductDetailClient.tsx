@@ -251,18 +251,18 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
                   <input
                     type="checkbox"
                     checked={selectedAddOns.includes(addOn.id)}
-                    onChange={e => {
+                    onChange={() => {
                       setSelectedAddOns(prev =>
-                        e.target.checked
-                          ? [...prev, addOn.id]
-                          : prev.filter(id => id !== addOn.id)
+                        prev.includes(addOn.id)
+                          ? prev.filter(id => id !== addOn.id)
+                          : [...prev, addOn.id]
                       );
                     }}
-                    className="bg-white"
+                    className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
                   />
                   <span>{addOn.name}</span>
                 </div>
-                <span className="text-gray-700 font-medium">+ {formatRupiah(addOn.price)}</span>
+                <span>{formatRupiah(addOn.price)}</span>
               </label>
             ))}
           </div>

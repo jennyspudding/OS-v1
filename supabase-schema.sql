@@ -49,6 +49,7 @@ CREATE TABLE orders (
   
   -- Delivery Information
   vehicle_type vehicle_type DEFAULT 'MOTORCYCLE',
+  use_toll_road BOOLEAN DEFAULT false, -- New column for toll road preference
   requested_delivery_time TIMESTAMPTZ NOT NULL,
   actual_delivery_time TIMESTAMPTZ,
   

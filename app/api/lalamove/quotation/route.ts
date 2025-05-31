@@ -20,6 +20,54 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c; // Distance in kilometers
 }
 
+// Apply hidden markup to delivery prices
+// Motor delivery: +Rp 3,000, Car delivery: +Rp 5,000
+function applyDeliveryMarkup(originalPrice: number, serviceType: string): number {
+  let markup = 0;
+  
+  if (serviceType === 'MOTORCYCLE') {
+    markup = 3000; // Rp 3,000 for motor delivery
+  } else if (serviceType === 'CAR' || serviceType === 'SEDAN') {
+    markup = 5000; // Rp 5,000 for car delivery
+  }
+  
+  const finalPrice = originalPrice + markup;
+  
+  console.log('Hidden markup applied:', {
+    serviceType,
+    originalPrice,
+    markup,
+    finalPrice,
+    markupPercentage: markup > 0 ? ((markup / originalPrice) * 100).toFixed(2) + '%' : '0%'
+  });
+  
+  return finalPrice;
+}
+
+// Apply toll road charges (visible in price breakdown)
+function applyTollRoadCharges(basePrice: number, serviceType: string, useTollRoad: boolean): { finalPrice: number, tollCharge: number } {
+  let tollCharge = 0;
+  
+  // Toll road option only available for CAR/SEDAN deliveries
+  if (useTollRoad && (serviceType === 'CAR' || serviceType === 'SEDAN')) {
+    tollCharge = 25000; // Rp 25,000 for toll road usage
+  }
+  
+  const finalPrice = basePrice + tollCharge;
+  
+  if (tollCharge > 0) {
+    console.log('Toll road charges applied:', {
+      serviceType,
+      basePrice,
+      tollCharge,
+      finalPrice,
+      useTollRoad
+    });
+  }
+  
+  return { finalPrice, tollCharge };
+}
+
 // Calculate delivery price based on distance using new formula
 function calculateDeliveryPrice(distanceKm: number, serviceType: string): number {
   let finalPrice: number;
@@ -81,7 +129,8 @@ export async function POST(request: NextRequest) {
       coordinates,
       isRequestedAt,
       isExpress,
-      orderType
+      orderType,
+      useTollRoad
     } = body;
 
     console.log('Quotation request received:', { 
@@ -91,10 +140,12 @@ export async function POST(request: NextRequest) {
       coordinates,
       isExpress,
       orderType,
+      useTollRoad: useTollRoad ? 'YES' : 'NO',
       fullBody: body 
     });
     console.log('ServiceType received from frontend:', serviceType);
     console.log('ServiceType type:', typeof serviceType);
+    console.log('🚗 Toll road option requested:', useTollRoad ? 'YES' : 'NO');
     
     // Determine if this is an express order
     const isExpressOrder = isExpress === true || orderType === 'express';
@@ -231,10 +282,12 @@ export async function POST(request: NextRequest) {
       
       // Return realistic mock quotation based on actual distance
       const calculatedPrice = calculateDeliveryPrice(distanceKm, serviceType);
+      const markedUpPrice = applyDeliveryMarkup(calculatedPrice, serviceType);
+      const { finalPrice, tollCharge } = applyTollRoadCharges(markedUpPrice, serviceType, useTollRoad);
       const mockQuotation = {
         quotationId: 'mock-' + Date.now(),
         priceBreakdown: {
-          total: calculatedPrice.toString(),
+          total: finalPrice.toString(),
           currency: 'IDR'
         },
         distance: {
@@ -253,7 +306,12 @@ export async function POST(request: NextRequest) {
           distance: mockQuotation.distance,
           serviceType: mockQuotation.serviceType,
           expiresAt: mockQuotation.expiresAt,
-          estimatedTime: getEstimatedDeliveryTime(mockQuotation.serviceType)
+          estimatedTime: getEstimatedDeliveryTime(mockQuotation.serviceType),
+          tollCharge: tollCharge > 0 ? {
+            value: tollCharge.toString(),
+            currency: 'IDR'
+          } : undefined,
+          hasTollRoad: tollCharge > 0
         },
         isMock: true,
         note: `Calculated based on ${distanceKm.toFixed(1)}km distance from store`
@@ -300,10 +358,12 @@ export async function POST(request: NextRequest) {
       )) {
         console.log('Lalamove API/market error, returning calculated mock quotation');
         const calculatedPrice = calculateDeliveryPrice(distanceKm, serviceType);
+        const markedUpPrice = applyDeliveryMarkup(calculatedPrice, serviceType);
+        const { finalPrice, tollCharge } = applyTollRoadCharges(markedUpPrice, serviceType, useTollRoad);
         const mockQuotation = {
           quotationId: 'fallback-market-' + Date.now(),
           priceBreakdown: {
-            total: calculatedPrice.toString(),
+            total: finalPrice.toString(),
             currency: 'IDR'
           },
           distance: {
@@ -322,7 +382,12 @@ export async function POST(request: NextRequest) {
             distance: mockQuotation.distance,
             serviceType: mockQuotation.serviceType,
             expiresAt: mockQuotation.expiresAt,
-            estimatedTime: getEstimatedDeliveryTime(mockQuotation.serviceType)
+            estimatedTime: getEstimatedDeliveryTime(mockQuotation.serviceType),
+            tollCharge: tollCharge > 0 ? {
+              value: tollCharge.toString(),
+              currency: 'IDR'
+            } : undefined,
+            hasTollRoad: tollCharge > 0
           },
           isMock: true,
           note: `Lalamove service unavailable. Calculated based on ${distanceKm.toFixed(1)}km distance with ${serviceType.toLowerCase()}`
@@ -331,10 +396,12 @@ export async function POST(request: NextRequest) {
       
       // Return calculated mock quotation for other API failures
       const calculatedPrice = calculateDeliveryPrice(distanceKm, serviceType);
+      const markedUpPrice = applyDeliveryMarkup(calculatedPrice, serviceType);
+      const { finalPrice, tollCharge } = applyTollRoadCharges(markedUpPrice, serviceType, useTollRoad);
       const mockQuotation = {
         quotationId: 'fallback-' + Date.now(),
         priceBreakdown: {
-          total: calculatedPrice.toString(),
+          total: finalPrice.toString(),
           currency: 'IDR'
         },
         distance: {
@@ -353,7 +420,12 @@ export async function POST(request: NextRequest) {
           distance: mockQuotation.distance,
           serviceType: mockQuotation.serviceType,
           expiresAt: mockQuotation.expiresAt,
-          estimatedTime: getEstimatedDeliveryTime(mockQuotation.serviceType)
+          estimatedTime: getEstimatedDeliveryTime(mockQuotation.serviceType),
+          tollCharge: tollCharge > 0 ? {
+            value: tollCharge.toString(),
+            currency: 'IDR'
+          } : undefined,
+          hasTollRoad: tollCharge > 0
         },
         isMock: true,
         note: `API unavailable. Calculated based on ${distanceKm.toFixed(1)}km distance from store`
@@ -367,17 +439,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Apply hidden markup to delivery prices
+    const originalPrice = parseInt(quotation.priceBreakdown.total);
+    const markedUpPrice = applyDeliveryMarkup(originalPrice, serviceType);
+
+    // Apply toll road charges (visible in price breakdown)
+    const { finalPrice, tollCharge } = applyTollRoadCharges(markedUpPrice, serviceType, useTollRoad);
+
+    // Build response object
+    const responseQuotation: any = {
+      id: quotation.quotationId,
+      price: {
+        total: finalPrice.toString(),
+        currency: 'IDR'
+      },
+      distance: quotation.distance,
+      serviceType: quotation.serviceType,
+      expiresAt: quotation.expiresAt,
+      estimatedTime: getEstimatedDeliveryTime(quotation.serviceType)
+    };
+
+    // Only include toll charge in response if it was actually applied
+    if (tollCharge > 0) {
+      responseQuotation.tollCharge = {
+        value: tollCharge.toString(),
+        currency: 'IDR'
+      };
+      responseQuotation.hasTollRoad = true;
+    } else {
+      responseQuotation.hasTollRoad = false;
+    }
+
     // Return the quotation data
     return NextResponse.json({
       success: true,
-      quotation: {
-        id: quotation.quotationId,
-        price: quotation.priceBreakdown,
-        distance: quotation.distance,
-        serviceType: quotation.serviceType,
-        expiresAt: quotation.expiresAt,
-        estimatedTime: getEstimatedDeliveryTime(quotation.serviceType)
-      }
+      quotation: responseQuotation
     });
 
   } catch (error) {
