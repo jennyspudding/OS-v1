@@ -1,10 +1,10 @@
 "use client";
 import Image from "next/image";
-import { Button } from "../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { useCart } from "../../components/CartContext";
+import { useCart } from "@/components/CartContext";
 import ProductBadge from '@/components/ProductBadge';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 
