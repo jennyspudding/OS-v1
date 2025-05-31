@@ -1,15 +1,10 @@
 "use client";
-import { useState, useEffect, Suspense, useRef, useCallback } from "react";
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import SimpleGoogleMap from "@/components/SimpleGoogleMap";
-import { useCart } from "@/components/CartContext";
-import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCart } from '../../components/CartContext';
+import SimpleGoogleMap from '../../components/SimpleGoogleMap';
+import { supabase } from '../../lib/supabase';
 
 function validateCoupon(code: string, cartTotal: number, coupons: any[]) {
   const now = new Date();
@@ -28,10 +23,16 @@ function validateCoupon(code: string, cartTotal: number, coupons: any[]) {
   return { valid: true, discount, coupon };
 }
 
-function CustomerInfoContent() {
+function ExpressCustomerInfoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { cart, applyPromoCode, removePromoCode } = useCart();
+  
+  // Filter only express items
+  const expressItems = cart.items.filter(item => 
+    item.isExpress === true || item.source === 'express'
+  );
+  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -68,6 +69,7 @@ function CustomerInfoContent() {
   const [selectedTime, setSelectedTime] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [deliveryTimeWarning, setDeliveryTimeWarning] = useState('');
+  const [timeSlotRefreshKey, setTimeSlotRefreshKey] = useState(0);
   
   // Delivery info modal state
   const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
@@ -77,14 +79,37 @@ function CustomerInfoContent() {
   // Refs to manage component state and prevent memory leaks
   const isMountedRef = useRef(true);
   const quotationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const urlParamsProcessedRef = useRef(false); // Track if URL params have been processed
+  const urlParamsProcessedRef = useRef(false);
 
-  // Calculate cart total
-  const cartTotal = cart.items.reduce((sum, item) => {
+  // 🔧 IMPROVED COMPONENT MOUNT MANAGEMENT
+  // Reset mounted state to true whenever component re-renders
+  useEffect(() => {
+    isMountedRef.current = true;
+    console.log('🔄 EXPRESS: Component mounted/re-mounted, isMountedRef set to true');
+    
+    return () => {
+      // Only set to false on actual component unmount
+      console.log('🔄 EXPRESS: Component cleanup - setting isMountedRef to false');
+      isMountedRef.current = false;
+      if (quotationTimeoutRef.current) {
+        clearTimeout(quotationTimeoutRef.current);
+      }
+    };
+  }, []); // Empty dependency to run only on mount/unmount
+
+  // Calculate cart total for express items only
+  const cartTotal = expressItems.reduce((sum, item) => {
     const itemTotal = item.price * item.quantity;
     const addOnsTotal = item.addOns ? item.addOns.reduce((addOnSum, addOn) => addOnSum + addOn.price, 0) * item.quantity : 0;
     return sum + itemTotal + addOnsTotal;
   }, 0);
+
+  // Redirect if no express items
+  useEffect(() => {
+    if (expressItems.length === 0) {
+      router.push('/express-store');
+    }
+  }, [expressItems, router]);
 
   // 🗺️ IMPROVED MAP KEY MANAGEMENT - Only increment on initial load
   useEffect(() => {
@@ -111,6 +136,33 @@ function CustomerInfoContent() {
     let hasStoredLocation = false;
     
     try {
+      // Priority 1: Load express-specific session data first
+      const expressLocationData = sessionStorage.getItem('expressLocationData');
+      if (expressLocationData) {
+        const parsedExpressData = JSON.parse(expressLocationData);
+        console.log('🔄 EXPRESS: Loading express location data from session:', parsedExpressData);
+        
+        setSelectedLocation(parsedExpressData.selectedLocation);
+        setMapCenter(parsedExpressData.mapCenter);
+        setAlamatLengkap(parsedExpressData.alamatLengkap);
+        hasStoredLocation = true;
+        
+        console.log('✅ EXPRESS: Express location data restored from session');
+      }
+      
+      // Load express quotation data if available
+      const expressQuotationData = sessionStorage.getItem('expressQuotationData');
+      if (expressQuotationData) {
+        const parsedQuotationData = JSON.parse(expressQuotationData);
+        console.log('🔄 EXPRESS: Loading express quotation data from session:', parsedQuotationData);
+        
+        setDeliveryQuotation(parsedQuotationData.quotation);
+        setIsMockQuotation(parsedQuotationData.isMock || false);
+        
+        console.log('✅ EXPRESS: Express quotation data restored from session');
+      }
+      
+      // Load general form data
       const storedFormData = localStorage.getItem('customerFormData');
       const storedMapCenter = localStorage.getItem('customerMapCenter');
       const storedSelectedLocation = localStorage.getItem('customerSelectedLocation');
@@ -125,27 +177,31 @@ function CustomerInfoContent() {
         setUseSameName(parsedFormData.name === parsedFormData.recipientName);
       }
 
-      if (storedMapCenter) {
-        const parsedMapCenter = JSON.parse(storedMapCenter);
-        setMapCenter(parsedMapCenter);
-      } else {
-        // Set default Jakarta center if no stored center
-        const defaultCenter = { lat: -6.1751, lng: 106.8650 }; // Central Jakarta (Menteng area)
-        setMapCenter(defaultCenter);
-        console.log('No stored map center, using default Jakarta location:', defaultCenter);
+      // Only use general localStorage if express session data not available
+      if (!hasStoredLocation) {
+        if (storedMapCenter) {
+          const parsedMapCenter = JSON.parse(storedMapCenter);
+          setMapCenter(parsedMapCenter);
+        } else {
+          // Set default Jakarta center if no stored center
+          const defaultCenter = { lat: -6.1751, lng: 106.8650 }; // Central Jakarta (Menteng area)
+          setMapCenter(defaultCenter);
+          console.log('No stored map center, using default Jakarta location:', defaultCenter);
+        }
+
+        if (storedSelectedLocation) {
+          const parsedSelectedLocation = JSON.parse(storedSelectedLocation);
+          setSelectedLocation(parsedSelectedLocation);
+          hasStoredLocation = true;
+        }
+
+        if (storedAlamatLengkap) {
+          setAlamatLengkap(storedAlamatLengkap);
+        }
       }
 
-      if (storedSelectedLocation) {
-        const parsedSelectedLocation = JSON.parse(storedSelectedLocation);
-        setSelectedLocation(parsedSelectedLocation);
-        hasStoredLocation = true;
-      }
-
-      if (storedAlamatLengkap) {
-        setAlamatLengkap(storedAlamatLengkap);
-      }
-
-      if (storedDeliveryQuotation) {
+      // Load delivery quotation only if express session data not available
+      if (!expressQuotationData && storedDeliveryQuotation) {
         const parsedQuotation = JSON.parse(storedDeliveryQuotation);
         setDeliveryQuotation(parsedQuotation.quotation || parsedQuotation);
         setIsMockQuotation(parsedQuotation.isMock || false);
@@ -173,9 +229,9 @@ function CustomerInfoContent() {
       }
 
       setIsDataLoaded(true);
-      console.log('Loaded stored customer data');
+      console.log('✅ EXPRESS: Loaded stored customer data with express priority');
     } catch (error) {
-      console.error('Error loading stored data:', error);
+      console.error('❌ EXPRESS: Error loading stored data:', error);
       // Set default Jakarta center and location on error
       const defaultCenter = { lat: -6.1751, lng: 106.8650 }; // Central Jakarta (Menteng area)
       setMapCenter(defaultCenter);
@@ -518,7 +574,7 @@ function CustomerInfoContent() {
 
   // Function to get delivery quotation with specific vehicle type
   const getDeliveryQuotationWithVehicleType = async (specificVehicleType?: 'MOTORCYCLE' | 'CAR') => {
-    console.log('getDeliveryQuotationWithVehicleType called with:', specificVehicleType);
+    console.log('🚀 EXPRESS: getDeliveryQuotationWithVehicleType called with:', specificVehicleType);
     
     // Check if component is still mounted
     if (!isMountedRef.current) {
@@ -532,17 +588,48 @@ function CustomerInfoContent() {
       return;
     }
     
+    // Get coordinates from multiple sources (prioritize session storage)
+    let coordinates = null;
+    let deliveryAddress = '';
+    
+    try {
+      // First priority: Express-specific session storage
+      const expressLocationData = sessionStorage.getItem('expressLocationData');
+      if (expressLocationData) {
+        const parsedData = JSON.parse(expressLocationData);
+        coordinates = { lat: parsedData.selectedLocation.lat, lng: parsedData.selectedLocation.lng };
+        deliveryAddress = parsedData.alamatLengkap;
+        console.log('✅ EXPRESS: Using coordinates from express session storage:', coordinates);
+      } 
+      // Second priority: State variables
+      else if (selectedLocation) {
+        coordinates = { lat: selectedLocation.lat, lng: selectedLocation.lng };
+        deliveryAddress = selectedLocation.address;
+        console.log('✅ EXPRESS: Using coordinates from state variables:', coordinates);
+      }
+      // Third priority: General localStorage
+      else {
+        const storedLocation = localStorage.getItem('customerSelectedLocation');
+        if (storedLocation) {
+          const parsedLocation = JSON.parse(storedLocation);
+          coordinates = { lat: parsedLocation.lat, lng: parsedLocation.lng };
+          deliveryAddress = parsedLocation.address;
+          console.log('✅ EXPRESS: Using coordinates from localStorage:', coordinates);
+        }
+      }
+    } catch (error) {
+      console.error('❌ EXPRESS: Error getting coordinates from storage:', error);
+    }
+    
     // Only work with precise coordinates
-    if (!selectedLocation) {
-      console.log('No coordinates available, cannot get quotation');
+    if (!coordinates || !deliveryAddress) {
+      console.log('❌ EXPRESS: No coordinates available, cannot get quotation');
       setQuotationError('Pilih lokasi pengiriman terlebih dahulu menggunakan GPS atau peta');
       return;
     }
 
-    const deliveryAddress = selectedLocation.address;
-    const coordinates = { lat: selectedLocation.lat, lng: selectedLocation.lng };
     const currentVehicleType = specificVehicleType || vehicleType;
-    console.log('Using coordinates for quotation:', { deliveryAddress, coordinates });
+    console.log('🎯 EXPRESS: Using coordinates for LaLaMove quotation:', { deliveryAddress, coordinates, vehicleType: currentVehicleType });
 
     setIsLoadingQuotation(true);
     setQuotationError(null);
@@ -550,15 +637,16 @@ function CustomerInfoContent() {
     try {
       const requestBody: any = {
         deliveryAddress,
-        recipientName: formData.recipientName || formData.name || 'Customer',
+        recipientName: formData.recipientName || formData.name || 'Express Customer',
         recipientPhone: formData.recipientPhone || formData.phone || '+62123456789',
-        serviceType: currentVehicleType
+        serviceType: currentVehicleType,
+        // Add express flag to API call
+        isExpress: true,
+        orderType: 'express'
       };
 
-      // Add precise coordinates if available
-      if (coordinates) {
-        requestBody.coordinates = coordinates;
-      }
+      // Add precise coordinates (essential for LaLaMove)
+      requestBody.coordinates = coordinates;
 
       // Add requested datetime if specified
       if (requestedDateTime) {
@@ -567,13 +655,12 @@ function CustomerInfoContent() {
         requestBody.isRequestedAt = dateTime.toISOString();
       }
       
-      console.log('=== FRONTEND DEBUG WITH SPECIFIC TYPE ===');
-      console.log('Specific vehicle type passed:', specificVehicleType);
-      console.log('Current vehicle type state:', vehicleType);
-      console.log('Using vehicle type:', currentVehicleType);
-      console.log('Service type in request:', requestBody.serviceType);
-      console.log('Full request body being sent:', requestBody);
-      console.log('=== END FRONTEND DEBUG ===');
+      console.log('=== EXPRESS LALAMOVE API REQUEST ===');
+      console.log('🚀 Express coordinates:', coordinates);
+      console.log('🚀 Vehicle type:', currentVehicleType);
+      console.log('🚀 Delivery address:', deliveryAddress);
+      console.log('🚀 Full request body:', requestBody);
+      console.log('=== END EXPRESS API REQUEST ===');
       
       const response = await fetch('/api/lalamove/quotation', {
         method: 'POST',
@@ -583,21 +670,37 @@ function CustomerInfoContent() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('Quotation response status:', response.status);
+      console.log('🔄 EXPRESS: LaLaMove quotation response status:', response.status);
       const data = await response.json();
-      console.log('Quotation response data:', data);
+      console.log('📦 EXPRESS: LaLaMove quotation response data:', data);
 
       if (data.success) {
         setDeliveryQuotation(data.quotation);
         setIsMockQuotation(data.isMock || false);
-        setQuotationError(null); // Clear any previous errors
+        setQuotationError(null);
+        
+        // Save successful quotation to storage
+        try {
+          const quotationData = {
+            quotation: data.quotation,
+            isMock: data.isMock || false,
+            timestamp: new Date().toISOString(),
+            coordinates: coordinates,
+            isExpress: true
+          };
+          localStorage.setItem('customerDeliveryQuotation', JSON.stringify(quotationData));
+          sessionStorage.setItem('expressQuotationData', JSON.stringify(quotationData));
+          console.log('✅ EXPRESS: Quotation saved to storage');
+        } catch (storageError) {
+          console.error('❌ EXPRESS: Error saving quotation:', storageError);
+        }
         
         // Show note if using mock data
         if (data.isMock) {
-          console.log('Using mock delivery quotation:', data.note || 'API not configured');
+          console.log('⚠️ EXPRESS: Using mock delivery quotation:', data.note || 'API not configured');
         }
       } else {
-        const errorMessage = data.error || 'Failed to get delivery quotation';
+        const errorMessage = data.error || 'Failed to get express delivery quotation';
         setQuotationError(errorMessage);
         
         // Save error to storage for debugging
@@ -605,16 +708,17 @@ function CustomerInfoContent() {
           const errorData = {
             error: errorMessage,
             timestamp: new Date().toISOString(),
-            coordinates: coordinates
+            coordinates: coordinates,
+            isExpress: true
           };
-          sessionStorage.setItem('lastQuotationError', JSON.stringify(errorData));
+          sessionStorage.setItem('lastExpressQuotationError', JSON.stringify(errorData));
         } catch (storageError) {
-          console.error('Error saving quotation error:', storageError);
+          console.error('❌ EXPRESS: Error saving quotation error:', storageError);
         }
       }
     } catch (error) {
-      console.error('Error getting quotation:', error);
-      const errorMessage = 'Failed to get delivery quotation';
+      console.error('❌ EXPRESS: Error getting quotation:', error);
+      const errorMessage = 'Failed to get express delivery quotation';
       setQuotationError(errorMessage);
       
       // Save error to storage for debugging
@@ -623,11 +727,12 @@ function CustomerInfoContent() {
           error: errorMessage,
           originalError: error instanceof Error ? error.message : String(error),
           timestamp: new Date().toISOString(),
-          coordinates: coordinates
+          coordinates: coordinates,
+          isExpress: true
         };
-        sessionStorage.setItem('lastQuotationError', JSON.stringify(errorData));
+        sessionStorage.setItem('lastExpressQuotationError', JSON.stringify(errorData));
       } catch (storageError) {
-        console.error('Error saving quotation error:', storageError);
+        console.error('❌ EXPRESS: Error saving quotation error:', storageError);
       }
     } finally {
       setIsLoadingQuotation(false);
@@ -668,8 +773,17 @@ function CustomerInfoContent() {
       return;
     }
     
-    // Save to storage
+    // Save to session storage for express
     try {
+      const locationSessionData = {
+        selectedLocation: location,
+        mapCenter: { lat: location.lat, lng: location.lng },
+        alamatLengkap: location.address,
+        timestamp: new Date().toISOString(),
+        isExpress: true
+      };
+      
+      sessionStorage.setItem('expressLocationData', JSON.stringify(locationSessionData));
       localStorage.setItem('customerSelectedLocation', JSON.stringify(location));
       localStorage.setItem('customerMapCenter', JSON.stringify({ lat: location.lat, lng: location.lng }));
       localStorage.setItem('customerAlamatLengkap', location.address);
@@ -698,6 +812,14 @@ function CustomerInfoContent() {
       // Save updated form data immediately to storage
       try {
         localStorage.setItem('customerFormData', JSON.stringify(newFormData));
+        const sessionData = {
+          formData: newFormData,
+          useSamePhone,
+          useSameName,
+          timestamp: new Date().toISOString(),
+          isExpress: true
+        };
+        sessionStorage.setItem('customerSessionData', JSON.stringify(sessionData));
       } catch (error) {
         console.error('Error saving form data:', error);
       }
@@ -748,22 +870,32 @@ function CustomerInfoContent() {
         quotationError,
         requestedDateTime,
         vehicleType,
-        cart: cart,
+        cart: {
+          ...cart,
+          items: expressItems // Only save express items
+        },
         cartTotal: cartTotal,
         deliveryTotal: deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0,
         promoCode: cart.promoCode,
         discount: cart.discount,
         grandTotal: cartTotal - (cart.discount || 0) + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0),
         timestamp: new Date().toISOString(),
-        status: 'ready_for_payment'
+        status: 'ready_for_payment',
+        // Express-specific flags
+        isExpress: true,
+        orderType: 'express',
+        expressItems: expressItems
       };
-      // Save to both localStorage and sessionStorage
+      // Save to both localStorage and sessionStorage with express-specific keys
+      localStorage.setItem('completeExpressOrderData', JSON.stringify(completeOrderData));
+      sessionStorage.setItem('currentExpressOrder', JSON.stringify(completeOrderData));
+      // Also save to general keys for compatibility
       localStorage.setItem('completeOrderData', JSON.stringify(completeOrderData));
       sessionStorage.setItem('currentOrder', JSON.stringify(completeOrderData));
-      console.log('Complete order data saved:', completeOrderData);
+      console.log('Complete express order data saved:', completeOrderData);
       return completeOrderData;
     } catch (error) {
-      console.error('Error saving complete order data:', error);
+      console.error('Error saving complete express order data:', error);
       return null;
     }
   };
@@ -794,9 +926,9 @@ function CustomerInfoContent() {
     const orderData = saveCompleteOrderData();
     
     if (orderData) {
-      console.log('Navigating to payment with order data:', orderData);
-      // Navigate to payment page (to be created)
-      router.push('/payment');
+      console.log('Navigating to express payment with order data:', orderData);
+      // Navigate to express payment page
+      router.push('/express-payment');
     } else {
       alert('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
     }
@@ -849,7 +981,32 @@ function CustomerInfoContent() {
     setPromoError("");
   };
 
-  // 📅 DELIVERY TIME VALIDATION FUNCTIONS
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (quotationTimeoutRef.current) {
+        clearTimeout(quotationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Debug: Monitor selectedLocation changes
+  useEffect(() => {
+    console.log('🔍 EXPRESS: selectedLocation state changed:', selectedLocation);
+  }, [selectedLocation]);
+
+  // Debug: Monitor alamatLengkap changes
+  useEffect(() => {
+    console.log('🔍 EXPRESS: alamatLengkap state changed:', alamatLengkap);
+  }, [alamatLengkap]);
+
+  // Debug: Monitor mapCenter changes
+  useEffect(() => {
+    console.log('🔍 EXPRESS: mapCenter state changed:', mapCenter);
+  }, [mapCenter]);
+
+  // 📅 DELIVERY TIME VALIDATION FUNCTIONS FOR EXPRESS (SAME-DAY DELIVERY)
   const validateDeliveryTime = (dateTimeString: string) => {
     if (!dateTimeString) return { valid: true, warning: '' };
     
@@ -859,53 +1016,54 @@ function CustomerInfoContent() {
     // Normalize dates to compare only the date part
     const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-    const tomorrowOnly = new Date(todayOnly);
-    tomorrowOnly.setDate(tomorrowOnly.getDate() + 1);
     
     const selectedHour = selectedDate.getHours();
+    const selectedMinutes = selectedDate.getMinutes();
     const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
     
-    // Check if same day delivery (not allowed)
-    if (selectedDateOnly.getTime() === todayOnly.getTime()) {
+    // Express only allows same-day delivery
+    if (selectedDateOnly.getTime() !== todayOnly.getTime()) {
       return {
         valid: false,
-        warning: '⚠️ Tidak ada pengiriman di hari yang sama (Kecuali Ready Stok Toko). Semua pesanan akan dikirim H+1 (besok).'
+        warning: '⚡ Express delivery hanya tersedia untuk hari ini (same-day delivery). Silakan pilih hari ini.'
       };
     }
     
-    // Check if selecting tomorrow but it's after 15:00 today (should be H+2)
-    if (selectedDateOnly.getTime() === tomorrowOnly.getTime() && currentHour >= 15) {
+    // Check if delivery time is between 11:00-17:00 WIB
+    if (selectedHour < 11 || selectedHour > 17) {
       return {
         valid: false,
-        warning: '⚠️ Pesanan setelah jam 15:00 hanya tersedia untuk pengiriman H+2. Silakan pilih tanggal lain.'
+        warning: '⚡ Waktu pengiriman express hanya tersedia antara jam 11:00 - 17:00 WIB. Silakan pilih waktu dalam rentang tersebut.'
       };
     }
     
-    // Check if delivery time is between 11:00-16:00
-    if (selectedHour < 11 || selectedHour > 16) {
+    // Check if selected time is in the past
+    const selectedTimeInMinutes = selectedHour * 60 + selectedMinutes;
+    const currentTimeInMinutes = currentHour * 60 + currentMinutes;
+    
+    if (selectedTimeInMinutes <= currentTimeInMinutes + 30) { // At least 30 minutes from now
       return {
         valid: false,
-        warning: '⚠️ Waktu pengiriman hanya tersedia antara jam 11:00 - 16:00. Silakan pilih waktu dalam rentang tersebut.'
+        warning: '⚡ Waktu pengiriman express harus minimal 30 menit dari sekarang. Silakan pilih waktu yang lebih lama.'
       };
     }
     
     return { valid: true, warning: '' };
   };
 
-  // Get minimum allowed delivery date (tomorrow)
+  // Get minimum allowed delivery date (today)
   const getMinDeliveryDateTime = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(11, 0, 0, 0); // Default to 11:00 AM tomorrow
-    return tomorrow.toISOString().slice(0, 16);
+    const today = new Date();
+    today.setHours(11, 0, 0, 0); // Default to 11:00 AM today
+    return today.toISOString().slice(0, 16);
   };
 
-  // Get maximum allowed delivery date (tomorrow at 16:00)
+  // Get maximum allowed delivery date (today at 16:00)
   const getMaxDeliveryDateTime = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 7); // Allow booking up to 1 week ahead
-    tomorrow.setHours(16, 0, 0, 0); // Max time is 16:00
-    return tomorrow.toISOString().slice(0, 16);
+    const today = new Date();
+    today.setHours(16, 0, 0, 0); // Max time is 16:00 today
+    return today.toISOString().slice(0, 16);
   };
 
   // Handle delivery time change with validation
@@ -920,11 +1078,46 @@ function CustomerInfoContent() {
     }
   };
 
-  // 🗓️ CUSTOM DATE/TIME PICKER FUNCTIONS
-  const timeSlots = [
-    '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', 
-    '14:00', '14:30', '15:00', '15:30', '16:00'
+  // 🗓️ CUSTOM DATE/TIME PICKER FUNCTIONS FOR EXPRESS
+  const getAllTimeSlots = () => [
+    '11:00', '11:15', '11:30', '11:45',
+    '12:00', '12:15', '12:30', '12:45',
+    '13:00', '13:15', '13:30', '13:45',
+    '14:00', '14:15', '14:30', '14:45',
+    '15:00', '15:15', '15:30', '15:45',
+    '16:00', '16:15', '16:30', '16:45',
+    '17:00'
   ];
+
+  // Get available time slots based on current time + 30 minutes buffer
+  const getAvailableTimeSlots = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    // Add 30 minutes buffer
+    const bufferTime = new Date(now);
+    bufferTime.setMinutes(currentMinutes + 30);
+    
+    const bufferHour = bufferTime.getHours();
+    const bufferMinutes = bufferTime.getMinutes();
+    
+    const allSlots = getAllTimeSlots();
+    
+    return allSlots.filter(timeSlot => {
+      const [slotHour, slotMinutes] = timeSlot.split(':').map(Number);
+      const slotTimeInMinutes = slotHour * 60 + slotMinutes;
+      const bufferTimeInMinutes = bufferHour * 60 + bufferMinutes;
+      
+      // Only show slots that are at least 30 minutes from now and within operating hours
+      return slotTimeInMinutes >= bufferTimeInMinutes && slotHour >= 11 && slotHour <= 17;
+    });
+  };
+
+  // Get the filtered time slots
+  const timeSlots = useMemo(() => {
+    return getAvailableTimeSlots();
+  }, [timeSlotRefreshKey]);
 
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
@@ -960,16 +1153,16 @@ function CustomerInfoContent() {
     
     const days = [];
     const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
     
+    // For express, we only show today's month and only allow today to be selected
     for (let i = 0; i < 42; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       
       const isCurrentMonth = date.getMonth() === month;
-      const isPast = date < tomorrow;
       const isToday = date.toDateString() === today.toDateString();
+      const isPast = date < today && !isToday; // Past but not today
+      const isFuture = date > today; // Future dates not allowed for express
       
       // Fix timezone issue by using local date formatting instead of ISO string
       const dateYear = date.getFullYear();
@@ -983,37 +1176,89 @@ function CustomerInfoContent() {
         isCurrentMonth,
         isPast,
         isToday,
-        isSelected: selectedDate === dateStr
+        isFuture,
+        isSelected: selectedDate === dateStr,
+        isDisabled: !isToday // For express, only today is enabled
       });
     }
     
     return days;
   };
 
+  // Auto-set today's date for express same-day delivery
+  useEffect(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    
+    setSelectedDate(todayStr);
+  }, []);
+
+  // Refresh time slots every minute to update availability based on current time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeSlotRefreshKey(prev => prev + 1);
+    }, 60000); // Refresh every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-48">
+    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] to-[#f5f1eb] pb-48">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white flex items-center px-4 py-3 border-b border-gray-200">
-        <button className="mr-3" onClick={() => router.back()}>
-          <svg width="28" height="28" fill="none" stroke="black" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-lg font-bold flex-1">Informasi Customer</h1>
-        <button 
-          onClick={() => setShowDeliveryInfo(true)}
-          className="p-2 rounded-full bg-[#f5e1d8] hover:bg-[#e9cfc0] transition-colors"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
+      <header className="sticky top-0 z-20 glass-navbar backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
+        <div className="flex items-center justify-between px-4 py-3 md:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-[#b48a78] hover:text-[#8b5a3c] transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="font-medium">Kembali</span>
+            </button>
+          </div>
+          
+          <h1 className="text-lg font-bold text-[#b48a78] font-display">Informasi Customer Express</h1>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
+              <span className="text-[#b48a78] animate-pulse">⚡</span>
+              <span className="text-sm font-medium text-[#8b6f47]">Express</span>
+            </div>
+            <button 
+              onClick={() => setShowDeliveryInfo(true)}
+              className="p-2 rounded-full bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 hover:from-[#b48a78]/30 hover:to-[#d4a574]/30 transition-colors"
+            >
+              <svg className="w-5 h-5 text-[#b48a78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Form Content */}
-      <div className="bg-white mx-4 mt-4 rounded-lg shadow-sm">
-        <div className="p-4">
-          <h2 className="text-lg font-semibold mb-4">Informasi Customer</h2>
+      <div className="bg-white/80 backdrop-blur-sm mx-4 mt-4 rounded-2xl shadow-lg border border-white/30">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="text-[#b48a78]">📋</span>
+            <h2 className="text-lg font-semibold text-[#b48a78]">Informasi Customer Express</h2>
+          </div>
+          
+          {/* Express Info Banner */}
+          <div className="bg-gradient-to-r from-[#b48a78]/10 to-[#d4a574]/10 border border-[#b48a78]/30 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[#b48a78]">⚡</span>
+              <span className="font-semibold text-[#8b6f47]">Same-Day Express Delivery</span>
+            </div>
+            <p className="text-sm text-[#8b6f47]">
+              Pesanan akan diproses dan dikirim dalam hari yang sama. Pastikan informasi pengiriman sudah benar.
+            </p>
+          </div>
           
           {/* Name Field */}
           <div className="mb-4">
@@ -1022,7 +1267,7 @@ function CustomerInfoContent() {
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
               placeholder="Nama lengkap"
             />
           </div>
@@ -1038,7 +1283,7 @@ function CustomerInfoContent() {
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                className="flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900"
+                className="flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
                 placeholder="8123456789"
               />
             </div>
@@ -1054,7 +1299,7 @@ function CustomerInfoContent() {
                   id="useSameName"
                   checked={useSameName}
                   onChange={(e) => handleUseSameNameChange(e.target.checked)}
-                  className="w-4 h-4 text-[#d63384] bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                  className="w-4 h-4 text-[#b48a78] bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
                 />
                 <label htmlFor="useSameName" className="ml-2 text-sm text-gray-600">
                   Gunakan nama yang sama
@@ -1065,7 +1310,7 @@ function CustomerInfoContent() {
                 value={formData.recipientName}
                 onChange={(e) => handleInputChange('recipientName', e.target.value)}
                 disabled={useSameName}
-                className={`w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent ${
+                className={`w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent ${
                   useSameName ? 'bg-gray-100 text-gray-500' : 'bg-white text-gray-900'
                 }`}
                 placeholder="Nama penerima"
@@ -1083,7 +1328,7 @@ function CustomerInfoContent() {
                   id="useSamePhone"
                   checked={useSamePhone}
                   onChange={(e) => handleUseSamePhoneChange(e.target.checked)}
-                  className="w-4 h-4 text-[#d63384] bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                  className="w-4 h-4 text-[#b48a78] bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
                 />
                 <label htmlFor="useSamePhone" className="ml-2 text-sm text-gray-600">
                   Gunakan nomor telepon yang sama
@@ -1098,7 +1343,7 @@ function CustomerInfoContent() {
                   value={formData.recipientPhone}
                   onChange={(e) => handleInputChange('recipientPhone', e.target.value)}
                   disabled={useSamePhone}
-                  className={`flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent ${
+                  className={`flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent ${
                     useSamePhone ? 'bg-gray-100 text-gray-500' : 'bg-white text-gray-900'
                   }`}
                   placeholder="8123456789"
@@ -1109,14 +1354,20 @@ function CustomerInfoContent() {
 
           {/* Map Section */}
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Pilih Lokasi Pengiriman yang Tepat</h3>
-            <p className="text-xs text-gray-500 mb-3">Gunakan peta untuk menentukan lokasi pengiriman yang akurat</p>
+            <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <span className="text-[#b48a78]">📍</span>
+              Pilih Lokasi Pengiriman Express yang Tepat
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">Gunakan peta untuk menentukan lokasi pengiriman yang akurat untuk express delivery</p>
             
             {selectedLocation && (
-              <div className="text-xs text-gray-600 bg-[#f8d7da] border border-[#f5c2c7] rounded p-2 mb-3">
-                <div className="font-medium text-[#d63384]">Lokasi Terpilih:</div>
+              <div className="text-xs text-gray-600 bg-gradient-to-r from-[#b48a78]/10 to-[#d4a574]/10 border border-[#b48a78]/30 rounded-xl p-3 mb-3">
+                <div className="font-medium text-[#b48a78] flex items-center gap-1">
+                  <span>⚡</span>
+                  Lokasi Express Terpilih:
+                </div>
                 <div className="mt-1">{selectedLocation.address}</div>
-                <div className="text-[#d63384] mt-1">
+                <div className="text-[#8b6f47] mt-1">
                   Koordinat: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
                 </div>
               </div>
@@ -1125,17 +1376,17 @@ function CustomerInfoContent() {
             {/* Alamat Lengkap Field */}
             {selectedLocation && (
               <div className="mb-3">
-                <label className="block text-sm text-gray-600 mb-2">Alamat Lengkap <span className="text-red-500">*</span></label>
+                <label className="block text-sm text-gray-600 mb-2">Alamat Lengkap <span className="text-[#b48a78]">*</span></label>
                 <textarea
                   value={alamatLengkap}
                   onChange={(e) => setAlamatLengkap(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
                   placeholder="Edit alamat lengkap jika diperlukan..."
                   rows={3}
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Alamat ini akan digunakan untuk pengiriman. Anda dapat mengedit jika diperlukan.
+                  Alamat ini akan digunakan untuk express delivery. Anda dapat mengedit jika diperlukan.
                 </p>
               </div>
             )}
@@ -1168,26 +1419,41 @@ function CustomerInfoContent() {
               
               {/* Delivery DateTime Selection */}
               <div className="mb-4">
-                <label className="block text-sm text-gray-600 mb-2">Waktu Pengiriman <span className="text-red-500">*</span></label>
+                {/* Auto-filled Date Display */}
+                <div className="mb-3">
+                  <label className="block text-sm text-gray-600 mb-2">Tanggal Pengiriman</label>
+                  <div className="w-full p-3 bg-gradient-to-r from-[#b48a78]/10 to-[#d4a574]/10 border border-[#b48a78]/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#b48a78]">📅</span>
+                      <span className="font-medium text-[#8b6f47]">
+                        {selectedDate ? formatDateDisplay(selectedDate) : 'Hari ini'}
+                      </span>
+                      <span className="text-[#b48a78] text-sm">(Same-day Express)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Selection */}
+                <label className="block text-sm text-gray-600 mb-2">Pilih Jam Pengiriman <span className="text-red-500">*</span></label>
                 
-                {/* Custom DateTime Display */}
+                {/* Time Picker Display */}
                 <div
                   onClick={() => setShowDatePicker(true)}
-                  className="w-full p-4 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white hover:border-[#d63384] transition-colors"
+                  className="w-full p-4 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white hover:border-[#b48a78] transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <svg className="w-5 h-5 text-[#d63384] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <svg className="w-5 h-5 text-[#b48a78] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <div>
-                        {selectedDate && selectedTime ? (
+                        {selectedTime ? (
                           <div>
-                            <div className="font-medium text-gray-900">{formatDateDisplay(selectedDate)}</div>
-                            <div className="text-sm text-[#d63384]">Jam {selectedTime} WIB</div>
+                            <div className="font-medium text-gray-900">Jam {selectedTime} WIB</div>
+                            <div className="text-sm text-[#b48a78]">Same-day Express Delivery</div>
                           </div>
                         ) : (
-                          <div className="text-gray-500">Pilih tanggal dan waktu pengiriman</div>
+                          <div className="text-gray-500">Pilih jam pengiriman hari ini</div>
                         )}
                       </div>
                     </div>
@@ -1197,7 +1463,7 @@ function CustomerInfoContent() {
                   </div>
                 </div>
                 
-                <p className="text-xs text-gray-500 mt-1">Pengiriman tersedia besok (H+1) jam 11:00 - 16:00 WIB</p>
+                <p className="text-xs text-gray-500 mt-1">Express delivery hari ini jam 11:00 - 17:00 WIB (Same-day)</p>
                 
                 {/* Validation Warning */}
                 {deliveryTimeWarning && (
@@ -1207,22 +1473,25 @@ function CustomerInfoContent() {
                 )}
               </div>
 
-              {/* Custom Date/Time Picker Modal */}
+              {/* Time Selection Modal */}
               {showDatePicker && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-[#f5e1d8] to-[#e9cfc0] text-black px-6 py-4 rounded-t-2xl">
+                    <div className="bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white px-6 py-4 rounded-t-2xl">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-bold">Pilih Waktu Pengiriman</h3>
-                          <p className="text-black text-opacity-70 text-sm">Tentukan kapan pesanan dikirim</p>
+                          <h3 className="text-lg font-bold flex items-center gap-2">
+                            <span>⚡</span>
+                            Pilih Jam Pengiriman
+                          </h3>
+                          <p className="text-white text-opacity-80 text-sm">Same-day express - pilih jam pengiriman hari ini (WIB)</p>
                         </div>
                         <button 
                           onClick={() => setShowDatePicker(false)}
-                          className="w-8 h-8 bg-black bg-opacity-10 rounded-full flex items-center justify-center hover:bg-opacity-20 transition-colors"
+                          className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center hover:bg-opacity-30 transition-colors"
                         >
-                          <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -1230,80 +1499,59 @@ function CustomerInfoContent() {
                     </div>
 
                     <div className="p-6">
-                      {/* Calendar */}
-                      <div className="mb-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <button
-                            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-                          
-                          <h4 className="text-lg font-semibold text-gray-900">
-                            {currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                          </h4>
-                          
-                          <button
-                            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
+                      {/* Date Display */}
+                      <div className="mb-6 text-center">
+                        <div className="bg-gradient-to-r from-[#b48a78]/10 to-[#d4a574]/10 border border-[#b48a78]/30 rounded-xl p-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-[#b48a78]">📅</span>
+                            <span className="font-medium text-[#8b6f47]">
+                              {selectedDate ? formatDateDisplay(selectedDate) : 'Hari ini'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-[#b48a78] mt-1">Same-day Express Delivery</div>
                         </div>
+                      </div>
 
-                        {/* Day headers */}
-                        <div className="grid grid-cols-7 gap-1 mb-2">
-                          {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day) => (
-                            <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
-                              {day}
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Calendar days */}
-                        <div className="grid grid-cols-7 gap-1">
-                          {generateCalendarDays().map((day, index) => (
-                            <button
-                              key={index}
-                              onClick={() => !day.isPast && day.isCurrentMonth && handleDateSelect(day.dateStr)}
-                              disabled={day.isPast || !day.isCurrentMonth}
-                              className={`
-                                p-2 text-sm rounded-lg transition-colors h-10 flex items-center justify-center
-                                ${day.isPast || !day.isCurrentMonth
-                                  ? 'text-gray-300 cursor-not-allowed'
-                                  : day.isSelected
-                                  ? 'bg-[#f5e1d8] text-black font-bold border-2 border-[#e9cfc0]'
-                                  : day.isToday
-                                  ? 'bg-[#f8d7da] text-[#d63384] font-medium'
-                                  : 'text-gray-700 hover:bg-[#f5e1d8] hover:text-black'
-                                }
-                              `}
-                            >
-                              {day.date}
-                            </button>
-                          ))}
+                      {/* Current Time & Buffer Info */}
+                      <div className="mb-4 text-center">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="text-sm text-blue-800">
+                            <div><strong>Waktu sekarang:</strong> {new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</div>
+                            <div><strong>Tersedia mulai:</strong> {new Date(Date.now() + 30 * 60 * 1000).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</div>
+                            <div className="text-xs text-blue-600 mt-1">Buffer 30 menit untuk persiapan express delivery</div>
+                          </div>
                         </div>
                       </div>
 
                       {/* Time slots */}
-                      {selectedDate && (
-                        <div className="mb-6">
-                          <h5 className="text-sm font-medium text-gray-700 mb-3">Pilih Jam Pengiriman</h5>
-                          <div className="grid grid-cols-3 gap-2">
-                            {timeSlots.map((time) => (
+                      <div className="mb-6">
+                        <h5 className="text-sm font-medium text-gray-700 mb-3 text-center">Pilih Jam Pengiriman (WIB)</h5>
+                        
+                        {/* Show warning if no slots available */}
+                        {timeSlots.length === 0 ? (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                            <div className="flex items-center justify-center mb-2">
+                              <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-yellow-800 font-medium">Tidak ada slot tersedia</span>
+                            </div>
+                            <p className="text-sm text-yellow-700">
+                              Maaf, tidak ada slot pengiriman express yang tersedia hari ini. 
+                              Express delivery memerlukan minimal 30 menit waktu persiapan dan beroperasi hingga jam 17:00 WIB.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                            {timeSlots.map((time: string) => (
                               <button
                                 key={time}
                                 onClick={() => handleTimeSelect(time)}
                                 className={`
                                   p-3 text-sm rounded-lg border-2 transition-colors font-medium
                                   ${selectedTime === time
-                                    ? 'border-[#e9cfc0] bg-[#f5e1d8] text-black'
-                                    : 'border-gray-200 text-gray-700 hover:border-[#e9cfc0] hover:bg-[#f5e1d8] hover:text-black'
+                                    ? 'border-[#b48a78] bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white'
+                                    : 'border-gray-200 text-gray-700 hover:border-[#b48a78] hover:bg-gradient-to-r hover:from-[#b48a78]/10 hover:to-[#d4a574]/10'
                                   }
                                 `}
                               >
@@ -1311,8 +1559,15 @@ function CustomerInfoContent() {
                               </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
+                        
+                        {/* Show buffer info */}
+                        {timeSlots.length > 0 && (
+                          <div className="mt-3 text-xs text-gray-500 text-center">
+                            Slot waktu tersedia dengan buffer 30 menit dari sekarang
+                          </div>
+                        )}
+                      </div>
 
                       {/* Action buttons */}
                       <div className="flex gap-3">
@@ -1324,15 +1579,15 @@ function CustomerInfoContent() {
                         </button>
                         <button
                           onClick={() => {
-                            if (selectedDate && selectedTime) {
+                            if (selectedTime) {
                               setShowDatePicker(false);
                             }
                           }}
-                          disabled={!selectedDate || !selectedTime}
+                          disabled={!selectedTime}
                           className={`
                             flex-1 px-4 py-3 rounded-xl font-medium transition-colors
-                            ${selectedDate && selectedTime
-                              ? 'bg-[#f5e1d8] text-black hover:bg-[#e9cfc0]'
+                            ${selectedTime
+                              ? 'bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white hover:from-[#8b6f47] hover:to-[#b48a78]'
                               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                             }
                           `}
@@ -1460,12 +1715,12 @@ function CustomerInfoContent() {
 
         {/* Promo Code Section */}
         <div className="px-4 pb-4 mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 p-6">
             <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2 text-[#b48a78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
-              Kode Promo
+              Kode Promo Express
             </h3>
             
             <div className="flex gap-2 mb-3">
@@ -1473,16 +1728,16 @@ function CustomerInfoContent() {
                 type="text"
                 value={promoInput}
                 onChange={e => setPromoInput(e.target.value)}
-                className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900"
+                className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
                 placeholder="Masukkan kode promo"
               />
-              <Button 
+              <button 
                 type="button" 
                 onClick={handleApplyPromo} 
-                className="px-6 py-3 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg whitespace-nowrap"
+                className="px-6 py-3 text-base rounded-full bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b6f47] hover:to-[#b48a78] shadow-lg whitespace-nowrap"
               >
                 Terapkan
-              </Button>
+              </button>
             </div>
             
             {cart.promoCode && (
@@ -1506,19 +1761,27 @@ function CustomerInfoContent() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 z-30">
+      <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-xl border-t border-white/20 p-4 z-30 shadow-xl">
         <div className="mb-3">
           <div className="text-sm text-gray-600 space-y-2">
+            {/* Express Badge */}
+            <div className="flex items-center justify-center mb-3">
+              <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
+                <span className="text-[#b48a78] animate-pulse">⚡</span>
+                <span className="text-sm font-medium text-[#8b6f47]">Express Order Summary</span>
+              </div>
+            </div>
+            
             {/* Subtotal Items */}
             <div className="flex justify-between">
-              <span>Subtotal Items:</span>
+              <span>Subtotal Express Items:</span>
               <span className="text-gray-900">Rp{cartTotal.toLocaleString('id-ID')}</span>
             </div>
             
             {/* Delivery Cost */}
             {deliveryQuotation && (
               <div className="flex justify-between">
-                <span>Biaya Pengiriman:</span>
+                <span>Biaya Pengiriman Express:</span>
                 <span className="text-gray-900">Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}</span>
               </div>
             )}
@@ -1534,20 +1797,21 @@ function CustomerInfoContent() {
             {/* Total */}
             <div className="border-t pt-2 mt-2">
               <div className="flex justify-between font-bold text-lg">
-                <span>Total Pembayaran:</span>
-                <span className="text-[#d63384]">
+                <span>Total Pembayaran Express:</span>
+                <span className="text-[#b48a78]">
                   Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
           </div>
         </div>
-        <Button 
+        <button 
           onClick={handleSubmit}
-          className="w-full py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg"
+          className="w-full py-4 text-base rounded-full bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b6f47] hover:to-[#b48a78] shadow-lg flex items-center justify-center gap-2"
         >
-          {deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'}
-        </Button>
+          <span>Lanjut ke Pembayaran Express</span>
+          <span>⚡</span>
+        </button>
       </div>
 
       {/* Delivery Info Modal */}
@@ -1555,17 +1819,20 @@ function CustomerInfoContent() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl">
             {/* Header */}
-            <div className="bg-gradient-to-r from-[#f5e1d8] to-[#e9cfc0] text-black px-6 py-4 rounded-t-2xl">
+            <div className="bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white px-6 py-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold">Aturan Pengiriman</h3>
-                  <p className="text-black text-opacity-70 text-sm">Ketentuan waktu pengiriman</p>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <span>⚡</span>
+                    Aturan Pengiriman Express
+                  </h3>
+                  <p className="text-white text-opacity-80 text-sm">Ketentuan waktu pengiriman express</p>
                 </div>
                 <button 
                   onClick={() => setShowDeliveryInfo(false)}
-                  className="w-8 h-8 bg-black bg-opacity-10 rounded-full flex items-center justify-center hover:bg-opacity-20 transition-colors"
+                  className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center hover:bg-opacity-30 transition-colors"
                 >
-                  <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -1575,44 +1842,44 @@ function CustomerInfoContent() {
             <div className="p-6">
               <div className="space-y-4">
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-[#b48a78] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Waktu Pengiriman</div>
-                    <div className="text-sm text-gray-600">Setiap hari jam 11:00 - 16:00 WIB</div>
+                    <div className="font-medium text-gray-900">Waktu Pengiriman Express</div>
+                    <div className="text-sm text-gray-600">Hari ini jam 11:00 - 17:00 WIB (Same-day delivery)</div>
                   </div>
                 </div>
 
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-[#b48a78] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Pengiriman H+1</div>
-                    <div className="text-sm text-gray-600">Semua pesanan dikirim besok (H+1), tidak ada pengiriman hari yang sama</div>
+                    <div className="font-medium text-gray-900">Express Same-Day Delivery</div>
+                    <div className="text-sm text-gray-600">Pesanan express dikirim hari ini juga, diproses dengan prioritas tinggi</div>
                   </div>
                 </div>
 
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-[#b48a78] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Batas Waktu Pemesanan</div>
-                    <div className="text-sm text-gray-600">Pesanan untuk pengiriman H+1 maksimal dibuat jam 15:00</div>
+                    <div className="font-medium text-gray-900">Minimal Waktu Pemesanan</div>
+                    <div className="text-sm text-gray-600">Pesanan minimal 30 menit sebelum waktu pengiriman yang dipilih</div>
                   </div>
                 </div>
 
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-[#b48a78] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Setelah Jam 15:00</div>
-                    <div className="text-sm text-gray-600">Pesanan setelah jam 15:00 hanya tersedia untuk pengiriman H+2</div>
+                    <div className="font-medium text-gray-900">Slot Waktu Express</div>
+                    <div className="text-sm text-gray-600">Tersedia setiap 15 menit dari jam 11:00 sampai 17:00 WIB</div>
                   </div>
                 </div>
 
                 <div className="flex items-start">
-                  <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-[#b48a78] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Kendaraan</div>
+                    <div className="font-medium text-gray-900">Kendaraan Express</div>
                     <div className="text-sm text-gray-600">
-                      <div>• Motor: lebih cepat & hemat, tidak ada garansi dalam pengiriman</div>
-                      <div>• Mobil: kapasitas besar, untuk pudding dekorasi, dijamin aman</div>
+                      <div>• Motor: express delivery tercepat, same-day</div>
+                      <div>• Mobil: kapasitas besar untuk pesanan express, same-day, dijamin aman</div>
                     </div>
                   </div>
                 </div>
@@ -1620,7 +1887,7 @@ function CustomerInfoContent() {
 
               <button
                 onClick={() => setShowDeliveryInfo(false)}
-                className="w-full mt-6 px-4 py-3 bg-[#f5e1d8] text-black rounded-xl font-medium hover:bg-[#e9cfc0] transition-colors"
+                className="w-full mt-6 px-4 py-3 bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white rounded-xl font-medium hover:from-[#8b6f47] hover:to-[#b48a78] transition-colors"
               >
                 Mengerti
               </button>
@@ -1632,17 +1899,17 @@ function CustomerInfoContent() {
   );
 }
 
-export default function CustomerInfoPage() {
+export default function ExpressCustomerInfoPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] to-[#f5f1eb] flex items-center justify-center">
         <div className="flex items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#d63384]"></div>
-          <span className="ml-3 text-gray-600">Memuat halaman...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#b48a78]"></div>
+          <span className="ml-3 text-[#8b6f47]">Memuat halaman Express...</span>
         </div>
       </div>
     }>
-      <CustomerInfoContent />
+      <ExpressCustomerInfoContent />
     </Suspense>
   );
 } 

@@ -634,23 +634,25 @@ export default function Home() {
       
       {/* Enhanced Categories Section */}
       {!isSearching && (
-        <section className="relative py-2 md:py-4">
+        <section className="relative py-1 md:py-3">
           <div className="max-w-7xl mx-auto px-3 md:px-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-3 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0">
+            <div className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-2 pt-2 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0">
               
               {/* Express Store - First Category Item */}
-              <div className="flex flex-col items-center snap-start min-w-[72px]">
+              <div className="flex flex-col items-center snap-start min-w-[72px] pt-2">
                 <Link 
                   href="/express-store"
                   className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
                 >
-                  <div className="w-14 h-14 bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-600 rounded-2xl flex items-center justify-center md:w-16 md:h-16 shadow-lg border-2 border-yellow-400/60 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300 relative overflow-hidden">
+                  <div className="w-14 h-14 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-600 rounded-2xl flex items-center justify-center md:w-16 md:h-16 shadow-xl border-2 border-yellow-300/80 group-hover:shadow-2xl group-hover:scale-105 transition-all duration-300 relative overflow-hidden">
                     {/* Premium shine effect */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent transform -skew-x-12 group-hover:animate-pulse"></div>
-                    <span className="text-xl md:text-2xl animate-pulse relative z-10">⚡</span>
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/40 via-yellow-200/50 to-transparent transform -skew-x-12 group-hover:animate-pulse"></div>
+                    {/* Secondary shine */}
+                    <div className="absolute inset-0 bg-gradient-to-bl from-transparent via-white/20 to-yellow-100/30 transform skew-x-12"></div>
+                    <span className="text-xl md:text-2xl animate-pulse relative z-10 drop-shadow-sm">⚡</span>
                   </div>
                   {/* Same Day Badge - Upper Left */}
-                  <div className="absolute -top-1 -left-1 bg-gradient-to-r from-green-500 to-green-600 text-white text-[8px] md:text-[9px] px-1 py-0.5 rounded-md font-bold shadow-sm transform -rotate-12 whitespace-nowrap">
+                  <div className="absolute -top-2 -left-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-[8px] md:text-[9px] px-1.5 py-0.5 rounded-md font-bold shadow-lg transform -rotate-12 whitespace-nowrap border border-green-400/50">
                     Same Day
                   </div>
                 </Link>
@@ -662,14 +664,14 @@ export default function Home() {
               {/* Regular Categories */}
               {isLoadingCategories ? (
                 Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex flex-col items-center snap-start min-w-[72px]">
+                  <div key={i} className="flex flex-col items-center snap-start min-w-[72px] pt-2">
                     <div className="w-14 h-14 bg-gray-200 rounded-2xl animate-pulse md:w-16 md:h-16 mb-1"></div>
                     <div className="w-12 h-3 bg-gray-200 rounded animate-pulse"></div>
                   </div>
                 ))
               ) : (
                 categories.map((cat) => (
-                  <div key={cat.id} className="flex flex-col items-center snap-start min-w-[72px]">
+                  <div key={cat.id} className="flex flex-col items-center snap-start min-w-[72px] pt-2">
                     <button
                       onClick={() => setSelectedCategory(cat.id)}
                       className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"

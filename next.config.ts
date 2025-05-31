@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import withPWA from 'next-pwa';
+// import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
   images: {
@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
         hostname: 'lbinjgbiugpvukqjclwd.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
       },
     ],
     // Image optimization settings
@@ -76,23 +82,26 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  // PWA optimizations
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'offlineCache',
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 86400,
-        },
-      },
-    },
-  ],
-})(nextConfig as any);
+// Temporarily disable PWA to fix asset loading issues
+export default nextConfig;
+
+// export default withPWA({
+//   dest: 'public',
+//   register: true,
+//   skipWaiting: true,
+//   disable: process.env.NODE_ENV === 'development',
+//   // PWA optimizations
+//   runtimeCaching: [
+//     {
+//       urlPattern: /^https?.*/,
+//       handler: 'NetworkFirst',
+//       options: {
+//         cacheName: 'offlineCache',
+//         expiration: {
+//           maxEntries: 200,
+//           maxAgeSeconds: 86400,
+//         },
+//       },
+//     },
+//   ],
+// })(nextConfig as any);

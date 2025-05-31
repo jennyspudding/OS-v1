@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
-import ProductDetailClient, { ProductDetailClientProps } from './ProductDetailClient';
+import ExpressProductDetailClient, { ExpressProductDetailClientProps } from './ExpressProductDetailClient';
 
 interface AddOn {
   id: string;
@@ -8,16 +8,14 @@ interface AddOn {
   price: number;
 }
 
-interface Product {
+interface ExpressProduct {
   id: string;
   name: string;
   description: string;
   price: number;
   images: string[];
   category_id: number;
-  // Express-specific fields
-  isExpress?: boolean;
-  stock_quantity?: number;
+  stock_quantity: number;
   preparation_time?: number;
 }
 
@@ -47,47 +45,35 @@ function getCategoryAddOns(categoryId: number): AddOn[] {
   }
 }
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ExpressProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   // Await params as required by Next.js 15
   const { id } = await params;
   
-  // Try to fetch from both products and express_products tables
-  // First try regular products
-  let { data: product, error } = await supabase
-    .from('products')
+  // Only fetch from express_products table
+  const { data: expressProduct, error } = await supabase
+    .from('express_products')
     .select('*')
     .eq('id', id)
     .single();
-
-  // If not found in products, try express_products
-  if (!product || error) {
-    const { data: expressProduct, error: expressError } = await supabase
-      .from('express_products')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (expressProduct && !expressError) {
-      // Map express product structure to match regular product structure
-      product = {
-        id: expressProduct.id,
-        name: expressProduct.name,
-        description: expressProduct.description || '',
-        price: expressProduct.price,
-        images: expressProduct.images || [],
-        category_id: expressProduct.category_id || 0,
-        // Add express-specific metadata
-        isExpress: true,
-        stock_quantity: expressProduct.stock_quantity,
-        preparation_time: expressProduct.preparation_time
-      };
-    }
+  
+  if (!expressProduct || error) {
+    return notFound();
   }
 
-  if (!product) return notFound();
+  // Map express product structure
+  const product: ExpressProduct = {
+    id: expressProduct.id,
+    name: expressProduct.name,
+    description: expressProduct.description || '',
+    price: expressProduct.price,
+    images: expressProduct.images || [],
+    category_id: expressProduct.category_id || 0,
+    stock_quantity: expressProduct.stock_quantity,
+    preparation_time: expressProduct.preparation_time
+  };
 
   // Get category-specific add-ons based on product's category
   const addOns: AddOn[] = getCategoryAddOns(product.category_id);
 
-  return <ProductDetailClient product={product} addOns={addOns} />;
+  return <ExpressProductDetailClient product={product} addOns={addOns} />;
 } 

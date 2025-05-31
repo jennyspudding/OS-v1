@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
       recipientPhone, 
       serviceType = 'MOTORCYCLE',
       coordinates,
-      isRequestedAt
+      isRequestedAt,
+      isExpress,
+      orderType
     } = body;
 
     console.log('Quotation request received:', { 
@@ -87,10 +89,16 @@ export async function POST(request: NextRequest) {
       recipientName, 
       serviceType, 
       coordinates,
+      isExpress,
+      orderType,
       fullBody: body 
     });
     console.log('ServiceType received from frontend:', serviceType);
     console.log('ServiceType type:', typeof serviceType);
+    
+    // Determine if this is an express order
+    const isExpressOrder = isExpress === true || orderType === 'express';
+    console.log('🚀 Express order detected:', isExpressOrder);
     
     // Test pricing calculation for debugging
     if (serviceType) {
@@ -117,13 +125,31 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.LALAMOVE_API_KEY;
     const apiSecret = process.env.LALAMOVE_API_SECRET;
     
-    // Jenny's Pudding Store Location (Real coordinates - update these with actual store location)
-    const storeCoordinates: LalamoveCoordinate = {
-      lat: parseFloat(process.env.STORE_PICKUP_LAT || "-6.2088"), // Jakarta Central area
-      lng: parseFloat(process.env.STORE_PICKUP_LNG || "106.8456")
-    };
-    const storeAddress = process.env.STORE_PICKUP_ADDRESS || "Jenny's Pudding Store, Jl. Sudirman No. 123, Jakarta Pusat, DKI Jakarta 10220, Indonesia";
-    const storeName = process.env.STORE_NAME || "Jenny's Pudding";
+    // Store coordinates - Different for Express vs Regular orders
+    let storeCoordinates: LalamoveCoordinate;
+    let storeAddress: string;
+    let storeName: string;
+    
+    if (isExpressOrder) {
+      // Express store coordinates
+      storeCoordinates = {
+        lat: -6.154887932771065,
+        lng: 106.87617965009943
+      };
+      storeAddress = process.env.EXPRESS_STORE_ADDRESS || "Jenny's Pudding Express Store, Jakarta, Indonesia";
+      storeName = "Jenny's Pudding Express";
+      console.log('🚀 Using EXPRESS store coordinates:', storeCoordinates);
+    } else {
+      // Regular store coordinates (main store)
+      storeCoordinates = {
+        lat: parseFloat(process.env.STORE_PICKUP_LAT || "-6.2088"), // Jakarta Central area
+        lng: parseFloat(process.env.STORE_PICKUP_LNG || "106.8456")
+      };
+      storeAddress = process.env.STORE_PICKUP_ADDRESS || "Jenny's Pudding Store, Jl. Sudirman No. 123, Jakarta Pusat, DKI Jakarta 10220, Indonesia";
+      storeName = process.env.STORE_NAME || "Jenny's Pudding";
+      console.log('📦 Using REGULAR store coordinates:', storeCoordinates);
+    }
+    
     const storePhone = process.env.STORE_PHONE || "+6281234567890";
 
     console.log('Store coordinates:', storeCoordinates);

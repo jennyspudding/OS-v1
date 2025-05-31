@@ -116,7 +116,7 @@ export default function ExpressStorePage() {
                 Jenny's Pudding
               </span>
               <span className="text-xs text-[#b48a78]/70 font-medium">
-                Premium Artisanal Desserts
+                Express Store
               </span>
             </div>
           </div>
@@ -137,7 +137,7 @@ export default function ExpressStorePage() {
                 Jenny's Pudding
               </span>
               <span className="text-sm text-[#b48a78]/70 font-medium">
-                Premium Artisanal Desserts
+                Express Store
               </span>
             </div>
           </div>
@@ -179,24 +179,24 @@ export default function ExpressStorePage() {
             <div className="text-center">
               <div className="flex justify-center items-center gap-3 mb-4">
                 <span className="text-4xl">🚀</span>
-                <h2 className="text-3xl font-bold text-[#b48a78] font-display md:text-4xl">Premium Artisanal Desserts</h2>
+                <h2 className="text-3xl font-bold text-[#b48a78] font-display md:text-4xl">Express Store</h2>
                 <span className="text-4xl animate-pulse text-[#b48a78]">⚡</span>
               </div>
               <p className="text-gray-700 text-lg mb-4 md:text-xl">
                 Pudding siap kirim <span className="font-bold text-[#b48a78]">hari ini juga!</span>
               </p>
               <div className="flex flex-wrap justify-center gap-4 text-sm md:text-base">
-                <div className="flex items-center gap-2 bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-100 px-4 py-2 rounded-full border border-amber-300/50 shadow-lg">
-                  <span className="text-amber-600">✓</span>
-                  <span className="text-amber-700 font-medium bg-gradient-to-r from-amber-700 to-yellow-600 bg-clip-text text-transparent">Stok Tersedia</span>
+                <div className="flex items-center gap-2 bg-green-100 px-4 py-2 rounded-full border border-green-200/50">
+                  <span className="text-green-600">✓</span>
+                  <span className="text-green-700 font-medium">Stok Tersedia</span>
                 </div>
-                <div className="flex items-center gap-2 bg-gradient-to-r from-slate-100 via-gray-50 to-slate-100 px-4 py-2 rounded-full border border-slate-300/50 shadow-lg">
-                  <span className="text-slate-600">🕐</span>
-                  <span className="text-slate-700 font-medium bg-gradient-to-r from-slate-700 to-gray-600 bg-clip-text text-transparent">Same-Day Delivery</span>
+                <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full border border-blue-200/50">
+                  <span className="text-blue-600">🕐</span>
+                  <span className="text-blue-700 font-medium">Same-Day Delivery</span>
                 </div>
-                <div className="flex items-center gap-2 bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-100 px-4 py-2 rounded-full border border-amber-300/50 shadow-lg">
-                  <span className="text-amber-600">📦</span>
-                  <span className="text-amber-700 font-medium bg-gradient-to-r from-amber-700 to-yellow-600 bg-clip-text text-transparent">Siap Kirim</span>
+                <div className="flex items-center gap-2 bg-purple-100 px-4 py-2 rounded-full border border-purple-200/50">
+                  <span className="text-purple-600">📦</span>
+                  <span className="text-purple-700 font-medium">Siap Kirim</span>
                 </div>
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function ExpressStorePage() {
                   {expressProducts.map((product, index) => (
                     <Link
                       key={product.id}
-                      href={`/express-product/${product.id}`}
+                      href={`/product/${product.id}`}
                       className="group block touch-manipulation"
                       prefetch={false}
                     >
