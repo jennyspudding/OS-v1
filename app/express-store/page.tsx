@@ -100,8 +100,16 @@ export default function ExpressStorePage() {
       {/* Enhanced Header */}
       <header className="sticky top-0 z-20 glass-navbar backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
         <div className="flex items-center justify-between px-4 py-3 md:px-8 relative">
+          {/* Back Button - always positioned to the left */}
+          <Link href="/" className="flex items-center gap-2 text-[#b48a78] hover:text-[#8b5a3c] transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="font-medium hidden md:inline">Kembali</span>
+          </Link>
+
           {/* Mobile: Centered Logo */}
-          <div className="flex items-center gap-3 flex-1 justify-center md:hidden">
+          <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2 md:hidden">
             <div className="relative">
               <Image 
                 src="/logo.png" 
@@ -141,17 +149,9 @@ export default function ExpressStorePage() {
               </span>
             </div>
           </div>
-
-          {/* Back Button - positioned to the left */}
-          <Link href="/" className="flex items-center gap-2 text-[#b48a78] hover:text-[#8b5a3c] transition-colors md:absolute md:left-4">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="font-medium hidden md:inline">Kembali</span>
-          </Link>
           
           {/* Enhanced Cart Button - Always positioned to the right */}
-          <Link href="/express-cart" className="relative group ml-auto">
+          <Link href="/express-cart" className="relative group">
             <Button variant="glass" size="icon" className="relative overflow-hidden">
               <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="md:w-7 md:h-7">
                 <path d="M6 6h15l-1.5 9h-13z" />

@@ -220,13 +220,18 @@ function ExpressPaymentContent() {
     <div className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white flex items-center px-4 py-3 border-b border-gray-200">
+        {/* Back button - always on the left */}
         <button className="mr-3" onClick={() => router.back()}>
           <svg width="28" height="28" fill="none" stroke="black" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h1 className="text-lg font-bold flex-1">Konfirmasi Pesanan Express</h1>
-        <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
+        
+        {/* Desktop only: Title */}
+        <h1 className="hidden md:block text-lg font-bold flex-1">Konfirmasi Pesanan Express</h1>
+        
+        {/* Express badge - always on the right */}
+        <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30 ml-auto md:ml-0">
           <span className="text-[#b48a78] animate-pulse">⚡</span>
           <span className="text-sm font-medium text-[#8b6f47]">Express</span>
         </div>

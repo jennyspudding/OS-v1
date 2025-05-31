@@ -1210,6 +1210,7 @@ function ExpressCustomerInfoContent() {
       {/* Header */}
       <header className="sticky top-0 z-20 glass-navbar backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
         <div className="flex items-center justify-between px-4 py-3 md:px-8">
+          {/* Back button - always on the left */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
@@ -1222,8 +1223,10 @@ function ExpressCustomerInfoContent() {
             </button>
           </div>
           
-          <h1 className="text-lg font-bold text-[#b48a78] font-display">Informasi Customer Express</h1>
+          {/* Desktop only: Title */}
+          <h1 className="hidden md:block text-lg font-bold text-[#b48a78] font-display">Informasi Customer Express</h1>
           
+          {/* Express badge and info button - always on the right */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
               <span className="text-[#b48a78] animate-pulse">⚡</span>
