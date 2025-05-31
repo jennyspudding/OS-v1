@@ -29,9 +29,6 @@ export default function ExpressCartPage() {
             </svg>
             <span className="font-medium">Kembali</span>
           </Link>
-
-          {/* Title */}
-          <h1 className="text-lg font-bold text-[#b48a78] font-display">Keranjang Express</h1>
           
           {/* Express Badge */}
           <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
