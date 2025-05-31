@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCart } from '../../../components/CartContext';
-import SimpleGoogleMap from '../../../components/SimpleGoogleMap';
-import { supabase } from '../../../lib/supabase';
+import { useCart } from '../../../../components/CartContext';
+import SimpleGoogleMap from '../../../../components/SimpleGoogleMap';
+import { supabase } from '../../../../lib/supabase';
 
 function validateCoupon(code: string, cartTotal: number, coupons: any[]) {
   const now = new Date();

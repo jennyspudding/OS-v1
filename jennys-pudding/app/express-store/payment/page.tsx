@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart } from '../../../components/CartContext';
+import { useCart } from '../../../../components/CartContext';
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { insertCompleteOrder, uploadPaymentProof, updateOrderStatus, updateOrderStatusByUuid } from "@/lib/supabase";
