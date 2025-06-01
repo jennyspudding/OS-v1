@@ -6,6 +6,7 @@ import { useCart } from '../../components/CartContext';
 import SimpleGoogleMap from '../../components/SimpleGoogleMap';
 import { createClient } from '@supabase/supabase-js';
 import DistanceExceededModal from '@/components/DistanceExceededModal'; // Import the new modal
+import { Button } from "@/components/ui/button"; // Import the Button component
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -1226,78 +1227,45 @@ function ExpressCustomerInfoContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FFF8F2] text-[#4A3B32] py-8 px-4 md:px-8 lg:px-16">
+    <div className="min-h-screen bg-[#FFF8F2] text-[#4A3B32]">
       {/* Header */}
-      <header className="sticky top-0 z-20 glass-navbar backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
-        <div className="flex items-center justify-between px-4 py-3 md:px-8">
-          {/* Back button - always on the left */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-[#b48a78] hover:text-[#8b5a3c] transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="font-medium">Kembali</span>
-            </button>
-          </div>
-          
-          {/* Desktop only: Title */}
-          <h1 className="hidden md:block text-lg font-bold text-[#b48a78] font-display">Informasi Customer Express</h1>
-          
-          {/* Express badge and info button - always on the right */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
-              <span className="text-[#b48a78] animate-pulse">⚡</span>
-              <span className="text-sm font-medium text-[#8b6f47]">Express</span>
-            </div>
-            <button 
-              onClick={() => setShowDeliveryInfo(true)}
-              className="p-2 rounded-full bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 hover:from-[#b48a78]/30 hover:to-[#d4a574]/30 transition-colors"
-            >
-              <svg className="w-5 h-5 text-[#b48a78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-          </div>
-        </div>
+      <header className="sticky top-0 z-20 bg-white flex items-center px-4 py-3 border-b border-gray-200">
+        <button className="mr-3" onClick={() => router.back()}>
+          <svg width="24" height="24" fill="none" stroke="black" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <h1 className="text-lg font-bold flex-1">Express Customer Info</h1>
+        <button 
+          onClick={() => setShowDeliveryInfo(true)}
+          className="p-2 rounded-full bg-[#f5e1d8] hover:bg-[#e9cfc0] transition-colors"
+        >
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
       </header>
 
       {/* Form Content */}
-      <div className="bg-white/80 backdrop-blur-sm mx-4 mt-4 rounded-2xl shadow-lg border border-white/30">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-[#b48a78]">📋</span>
-            <h2 className="text-lg font-semibold text-[#b48a78]">Informasi Customer Express</h2>
-          </div>
-          
-          {/* Express Info Banner */}
-          <div className="bg-gradient-to-r from-[#b48a78]/10 to-[#d4a574]/10 border border-[#b48a78]/30 rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[#b48a78]">⚡</span>
-              <span className="font-semibold text-[#8b6f47]">Same-Day Express Delivery</span>
-            </div>
-            <p className="text-sm text-[#8b6f47]">
-              Pesanan akan diproses dan dikirim dalam hari yang sama. Pastikan informasi pengiriman sudah benar.
-            </p>
-          </div>
+      <div className="bg-white mx-2 sm:mx-4 mt-2 sm:mt-4 rounded-lg shadow-sm mb-20">
+        <div className="p-3 sm:p-4 md:p-6">
+          <h2 className="text-lg font-semibold mb-4">Express Customer Info</h2>
           
           {/* Name Field */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-600 mb-1">Nama Lengkap</label>
+            <label className="block text-sm text-gray-600 mb-2">Nama Lengkap</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base"
               placeholder="Nama lengkap"
             />
           </div>
 
           {/* Phone Field */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-600 mb-1">Nomor Telepon</label>
+            <label className="block text-sm text-gray-600 mb-2">Nomor Telepon</label>
             <div className="flex">
               <div className="flex items-center px-3 bg-gray-50 border border-r-0 border-gray-300 rounded-l-lg">
                 <span className="text-gray-600 text-sm">+62</span>
@@ -1306,7 +1274,7 @@ function ExpressCustomerInfoContent() {
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                className="flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
+                className="flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base"
                 placeholder="8123456789"
               />
             </div>
@@ -1314,7 +1282,7 @@ function ExpressCustomerInfoContent() {
 
           {/* Recipient Name Field */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-600 mb-1">Nama Penerima</label>
+            <label className="block text-sm text-gray-600 mb-2">Nama Penerima</label>
             <div className="space-y-3">
               <div className="flex items-center">
                 <input
@@ -1322,9 +1290,9 @@ function ExpressCustomerInfoContent() {
                   id="useSameName"
                   checked={useSameName}
                   onChange={(e) => handleUseSameNameChange(e.target.checked)}
-                  className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
+                  className="appearance-none w-5 h-5 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                 />
-                <label htmlFor="useSameName" className="ml-2 text-sm text-gray-600">
+                <label htmlFor="useSameName" className="ml-3 text-sm text-gray-600">
                   Gunakan nama yang sama
                 </label>
               </div>
@@ -1333,7 +1301,7 @@ function ExpressCustomerInfoContent() {
                 value={formData.recipientName}
                 onChange={(e) => handleInputChange('recipientName', e.target.value)}
                 disabled={useSameName}
-                className={`w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent ${
+                className={`w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent text-base ${
                   useSameName ? 'bg-gray-100 text-gray-500' : 'bg-white text-gray-900'
                 }`}
                 placeholder="Nama penerima"
@@ -1343,7 +1311,7 @@ function ExpressCustomerInfoContent() {
 
           {/* Recipient Phone Field */}
           <div className="mb-4">
-            <label className="block text-sm text-gray-600 mb-1">Nomor Telepon Penerima</label>
+            <label className="block text-sm text-gray-600 mb-2">Nomor Telepon Penerima</label>
             <div className="space-y-3">
               <div className="flex items-center">
                 <input
@@ -1351,9 +1319,9 @@ function ExpressCustomerInfoContent() {
                   id="useSamePhone"
                   checked={useSamePhone}
                   onChange={(e) => handleUseSamePhoneChange(e.target.checked)}
-                  className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
+                  className="appearance-none w-5 h-5 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                 />
-                <label htmlFor="useSamePhone" className="ml-2 text-sm text-gray-600">
+                <label htmlFor="useSamePhone" className="ml-3 text-sm text-gray-600">
                   Gunakan nomor telepon yang sama
                 </label>
               </div>
@@ -1366,7 +1334,7 @@ function ExpressCustomerInfoContent() {
                   value={formData.recipientPhone}
                   onChange={(e) => handleInputChange('recipientPhone', e.target.value)}
                   disabled={useSamePhone}
-                  className={`flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent ${
+                  className={`flex-1 p-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent text-base ${
                     useSamePhone ? 'bg-gray-100 text-gray-500' : 'bg-white text-gray-900'
                   }`}
                   placeholder="8123456789"
@@ -1377,20 +1345,14 @@ function ExpressCustomerInfoContent() {
 
           {/* Map Section */}
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-              <span className="text-[#b48a78]">📍</span>
-              Pilih Lokasi Pengiriman Express yang Tepat
-            </h3>
-            <p className="text-xs text-gray-500 mb-3">Gunakan peta untuk menentukan lokasi pengiriman yang akurat untuk express delivery</p>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Pilih Lokasi Pengiriman yang Tepat</h3>
+            <p className="text-xs text-gray-500 mb-3">Gunakan peta untuk menentukan lokasi pengiriman yang akurat</p>
             
             {selectedLocation && (
-              <div className="text-xs text-gray-600 bg-gradient-to-r from-[#b48a78]/10 to-[#d4a574]/10 border border-[#b48a78]/30 rounded-xl p-3 mb-3">
-                <div className="font-medium text-[#b48a78] flex items-center gap-1">
-                  <span>⚡</span>
-                  Lokasi Express Terpilih:
-                </div>
-                <div className="mt-1">{selectedLocation.address}</div>
-                <div className="text-[#8b6f47] mt-1">
+              <div className="text-xs text-gray-600 bg-[#f8d7da] border border-[#f5c2c7] rounded-lg p-3 mb-3">
+                <div className="font-medium text-[#d63384] mb-1">Lokasi Terpilih:</div>
+                <div className="mb-2">{selectedLocation.address}</div>
+                <div className="text-[#d63384] text-xs">
                   Koordinat: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
                 </div>
               </div>
@@ -1399,32 +1361,34 @@ function ExpressCustomerInfoContent() {
             {/* Alamat Lengkap Field */}
             {selectedLocation && (
               <div className="mb-3">
-                <label className="block text-sm text-gray-600 mb-2">Alamat Lengkap <span className="text-[#b48a78]">*</span></label>
+                <label className="block text-sm text-gray-600 mb-2">Alamat Lengkap <span className="text-red-500">*</span></label>
                 <textarea
                   value={alamatLengkap}
                   onChange={(e) => setAlamatLengkap(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base"
                   placeholder="Edit alamat lengkap jika diperlukan..."
                   rows={3}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Alamat ini akan digunakan untuk express delivery. Anda dapat mengedit jika diperlukan.
+                <p className="text-xs text-gray-500 mt-2">
+                  Alamat ini akan digunakan untuk pengiriman. Anda dapat mengedit jika diperlukan.
                 </p>
               </div>
             )}
             
-            <SimpleGoogleMap
-              key={mapKey}
-              initialCenter={mapCenter || { lat: -6.2088, lng: 106.8456 }}
-              onLocationSelect={handleLocationSelect}
-              height="350px"
-              regionBounds={{
-                province: formData.province,
-                city: formData.city,
-                district: formData.district
-              }}
-            />
+            <div className="rounded-lg overflow-hidden">
+              <SimpleGoogleMap
+                key={mapKey}
+                initialCenter={mapCenter || { lat: -6.2088, lng: 106.8456 }}
+                onLocationSelect={handleLocationSelect}
+                height="300px"
+                regionBounds={{
+                  province: formData.province,
+                  city: formData.city,
+                  district: formData.district
+                }}
+              />
+            </div>
           </div>
 
         </div>
@@ -1626,42 +1590,42 @@ function ExpressCustomerInfoContent() {
               {/* Vehicle Type Selection */}
               <div className="mb-4">
                 <label className="block text-sm text-gray-600 mb-2">Pilih Jenis Kendaraan <span className="text-xs text-gray-500">(Motor dipilih otomatis)</span></label>
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => handleVehicleTypeChange('MOTORCYCLE')}
                     className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
                       vehicleType === 'MOTORCYCLE'
-                        ? 'border-[#b48a78] bg-[#b48a78]/10 text-[#b48a78]'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#b48a78]'
+                        ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
                     }`}
                   >
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center mb-1">
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                       <span className="font-medium">Motor</span>
                     </div>
-                    <div className="text-xs mt-1">lebih cepat & hemat, tidak ada garansi</div>
+                    <div className="text-xs text-center">lebih cepat & hemat, tidak ada garansi dalam pengiriman</div>
                   </button>
                   
                   <button
                     onClick={() => handleVehicleTypeChange('CAR')}
                     className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
                       vehicleType === 'CAR'
-                        ? 'border-[#b48a78] bg-[#b48a78]/10 text-[#b48a78]'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#b48a78]'
+                        ? 'border-[#d63384] bg-[#f8d7da] text-[#d63384]'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-[#d63384]'
                     }`}
                   >
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center mb-1">
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                       </svg>
                       <span className="font-medium">Mobil</span>
                     </div>
-                    <div className="text-xs mt-1">kapasitas besar, dijamin aman</div>
+                    <div className="text-xs text-center">kapasitas besar, untuk pudding dekorasi, dijamin aman</div>
                   </button>
                 </div>
-
+                
                 {/* Toll Road Option - Only show for Car */}
                 {vehicleType === 'CAR' && (
                   <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -1670,12 +1634,12 @@ function ExpressCustomerInfoContent() {
                         type="checkbox"
                         checked={useTollRoad}
                         onChange={(e) => handleTollRoadChange(e.target.checked)}
-                        className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
+                        className="appearance-none w-5 h-5 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                       />
                       <div className="flex-1">
                         <span className="text-sm font-medium text-gray-700">🚗 Pakai Tol</span>
                         <div className="text-xs text-gray-500 mt-1">
-                          +Rp 25.000 - Pengiriman lebih cepat melalui jalan tol (Perkiraan Biaya Tol)
+                          +Rp 25.000 - Pengiriman lebih cepat melalui jalan tol
                         </div>
                       </div>
                     </label>
@@ -1761,30 +1725,30 @@ function ExpressCustomerInfoContent() {
         )}
 
         {/* Promo Code Section */}
-        <div className="px-4 pb-4 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 p-6">
+        <div className="px-3 sm:px-4 md:px-6 pb-4 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-[#b48a78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
               </svg>
-              Kode Promo Express
+              Kode Promo
             </h3>
             
-            <div className="flex gap-2 mb-3">
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
               <input
                 type="text"
                 value={promoInput}
                 onChange={e => setPromoInput(e.target.value)}
-                className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-[#b48a78] focus:border-transparent bg-white text-gray-900"
+                className="flex-1 border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base"
                 placeholder="Masukkan kode promo"
               />
-              <button 
+              <Button 
                 type="button" 
                 onClick={handleApplyPromo} 
-                className="px-6 py-3 text-base rounded-full bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b6f47] hover:to-[#b48a78] shadow-lg whitespace-nowrap"
+                className="w-full sm:w-auto px-6 py-3 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg whitespace-nowrap"
               >
                 Terapkan
-              </button>
+              </Button>
             </div>
             
             {cart.promoCode && (
@@ -1808,28 +1772,20 @@ function ExpressCustomerInfoContent() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-xl border-t border-white/20 p-4 z-30 shadow-xl">
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-3 sm:p-4 z-30 safe-area-pb">
         <div className="mb-3">
           <div className="text-sm text-gray-600 space-y-2">
-            {/* Express Badge */}
-            <div className="flex items-center justify-center mb-3">
-              <div className="flex items-center gap-2 bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 px-3 py-1 rounded-full border border-[#b48a78]/30">
-                <span className="text-[#b48a78] animate-pulse">⚡</span>
-                <span className="text-sm font-medium text-[#8b6f47]">Express Order Summary</span>
-              </div>
-            </div>
-            
             {/* Subtotal Items */}
             <div className="flex justify-between">
-              <span>Subtotal Express Items:</span>
-              <span className="text-gray-900">Rp{cartTotal.toLocaleString('id-ID')}</span>
+              <span>Subtotal Items:</span>
+              <span className="text-gray-900 font-medium">Rp{cartTotal.toLocaleString('id-ID')}</span>
             </div>
             
             {/* Delivery Cost */}
             {deliveryQuotation && (
               <div className="flex justify-between">
-                <span>Biaya Pengiriman Express:</span>
-                <span className="text-gray-900">Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}</span>
+                <span>Biaya Pengiriman:</span>
+                <span className="text-gray-900 font-medium">Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}</span>
               </div>
             )}
             
@@ -1837,29 +1793,28 @@ function ExpressCustomerInfoContent() {
             {cart.promoCode && cart.discount && (
               <div className="flex justify-between">
                 <span>Diskon ({cart.promoCode}):</span>
-                <span className="text-green-600">-Rp{cart.discount.toLocaleString('id-ID')}</span>
+                <span className="text-green-600 font-medium">-Rp{cart.discount.toLocaleString('id-ID')}</span>
               </div>
             )}
             
             {/* Total */}
             <div className="border-t pt-2 mt-2">
               <div className="flex justify-between font-bold text-lg">
-                <span>Total Pembayaran Express:</span>
-                <span className="text-[#b48a78]">
+                <span>Total Pembayaran:</span>
+                <span className="text-[#d63384]">
                   Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
           </div>
         </div>
-        <button 
+        <Button 
           onClick={handleSubmit}
           disabled={hasExceededDistanceLimit || isLoadingQuotation || !deliveryQuotation}
-          className="w-full py-4 text-base rounded-full bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b6f47] hover:to-[#b48a78] shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 sm:py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoadingQuotation ? 'Menghitung...' : (hasExceededDistanceLimit ? 'Pilih Lokasi Lain' : (deliveryQuotation ? 'Lanjut ke Pembayaran Express' : 'Lanjut ke Pembayaran Express'))}
-          {!isLoadingQuotation && !hasExceededDistanceLimit && <span>⚡</span>}
-        </button>
+          {isLoadingQuotation ? 'Menghitung...' : (hasExceededDistanceLimit ? 'Pilih Lokasi Lain' : (deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'))}
+        </Button>
       </div>
 
       {/* Delivery Info Modal */}
