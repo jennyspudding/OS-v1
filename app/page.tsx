@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useCart } from "../components/CartContext";
 import ProductBadge from '@/components/ProductBadge';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
+import dynamic from 'next/dynamic';
 
 // Define the Category type including ranking
 interface Category {
@@ -382,6 +383,38 @@ export default function Home() {
       setAddingToCart(prev => ({ ...prev, [product.id]: false }));
     }, 1500);
   };
+
+  // Placeholder for the actual "Tentang Kami" section content
+  const TentangKamiSection = dynamic(() => Promise.resolve(() => (
+    <section className="bg-gradient-to-b from-white via-[#FFF8F2] to-[#FFF0E5] py-12 md:py-20">
+      {/* Actual Tentang Kami content would go here... placeholder for now */}
+      <div className="max-w-4xl mx-auto px-4 text-center">
+        <h2 className="text-3xl font-bold text-[#4A3B32] mb-6">Tentang Kami</h2>
+        <p className="text-lg text-gray-700 mb-4">
+          Jenny's Pudding menyajikan dessert premium dengan bahan-bahan berkualitas tinggi dan resep otentik.
+        </p>
+        <p className="text-gray-600">
+          Berkomitmen untuk memberikan rasa dan pengalaman terbaik untuk setiap pelanggan.
+        </p>
+      </div>
+    </section>
+  )), { ssr: false, loading: () => <div className="text-center py-10">Memuat bagian Tentang Kami...</div> });
+
+  // Placeholder for the actual Footer content
+  const FooterSection = dynamic(() => Promise.resolve(() => (
+    <footer className="bg-[#4A3B32] text-white py-10 md:py-16">
+      {/* Actual Footer content would go here... placeholder for now */}
+      <div className="max-w-6xl mx-auto px-4 text-center">
+        <p className="mb-4">&copy; {new Date().getFullYear()} Jenny's Pudding. All Rights Reserved.</p>
+        <div className="flex justify-center space-x-4">
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+        </div>
+      </div>
+    </footer>
+  )), { ssr: false, loading: () => <div className="text-center py-10 bg-[#4A3B32] text-white">Memuat footer...</div> });
+
+  const isLoading = isLoadingProducts || isLoadingCategories || isLoadingBanners;
 
   return (
     <div className="min-h-screen relative">
@@ -865,6 +898,28 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Tentang Kami Section - Lazy Loaded */}
+      <TentangKamiSection />
+
+      {/* Footer - Lazy Loaded */}
+      <FooterSection />
+
+      {/* Floating Cart Button */}
+      <Link href="/cart" className="fixed bottom-4 right-4 z-50">
+        <Button variant="glass" size="icon" className="w-16 h-16">
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="md:w-7 md:h-7">
+            <path d="M6 6h15l-1.5 9h-13z" />
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="19" cy="21" r="1" />
+          </svg>
+          {totalCartItems > 0 && (
+            <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full px-2 py-1 font-bold shadow-lg animate-pulse md:text-sm">
+              {totalCartItems}
+            </span>
+          )}
+        </Button>
+      </Link>
     </div>
   );
 }

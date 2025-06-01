@@ -13,6 +13,7 @@
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.8",
     "@lalamove/lalamove-js": "^1.1.0",
+    "@next/bundle-analyzer": "^15.3.3",
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.49.8",
     "class-variance-authority": "^0.7.1",
