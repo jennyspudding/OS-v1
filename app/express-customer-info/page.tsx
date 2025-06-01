@@ -1247,7 +1247,7 @@ function ExpressCustomerInfoContent() {
       </header>
 
       {/* Form Content */}
-      <div className="bg-white mx-2 sm:mx-4 mt-2 sm:mt-4 rounded-lg shadow-sm mb-20">
+      <div className="bg-white mx-2 sm:mx-4 mt-2 sm:mt-4 rounded-lg shadow-sm mb-32 sm:mb-36">
         <div className="p-3 sm:p-4 md:p-6">
           <h2 className="text-lg font-semibold mb-4">Express Customer Info</h2>
           
@@ -1725,7 +1725,7 @@ function ExpressCustomerInfoContent() {
         )}
 
         {/* Promo Code Section */}
-        <div className="px-3 sm:px-4 md:px-6 pb-4 mb-8">
+        <div className="px-3 sm:px-4 md:px-6 pb-4">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <h3 className="text-lg font-semibold mb-3 flex items-center">
               <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1734,18 +1734,18 @@ function ExpressCustomerInfoContent() {
               Kode Promo
             </h3>
             
-            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-3">
               <input
                 type="text"
                 value={promoInput}
                 onChange={e => setPromoInput(e.target.value)}
-                className="flex-1 border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base"
+                className="flex-grow border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base h-12 sm:h-auto"
                 placeholder="Masukkan kode promo"
               />
               <Button 
                 type="button" 
                 onClick={handleApplyPromo} 
-                className="w-full sm:w-auto px-6 py-3 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg whitespace-nowrap"
+                className="w-full sm:w-auto sm:flex-shrink-0 px-6 py-3 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg whitespace-nowrap h-12 sm:h-auto flex items-center justify-center"
               >
                 Terapkan
               </Button>
@@ -1773,48 +1773,50 @@ function ExpressCustomerInfoContent() {
 
       {/* Fixed Bottom Button */}
       <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-3 sm:p-4 z-30 safe-area-pb">
-        <div className="mb-3">
-          <div className="text-sm text-gray-600 space-y-2">
-            {/* Subtotal Items */}
-            <div className="flex justify-between">
-              <span>Subtotal Items:</span>
-              <span className="text-gray-900 font-medium">Rp{cartTotal.toLocaleString('id-ID')}</span>
-            </div>
-            
-            {/* Delivery Cost */}
-            {deliveryQuotation && (
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-3">
+            <div className="text-sm text-gray-600 space-y-1">
+              {/* Subtotal Items */}
               <div className="flex justify-between">
-                <span>Biaya Pengiriman:</span>
-                <span className="text-gray-900 font-medium">Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}</span>
+                <span>Subtotal Items:</span>
+                <span className="text-gray-900 font-medium">Rp{cartTotal.toLocaleString('id-ID')}</span>
               </div>
-            )}
-            
-            {/* Discount */}
-            {cart.promoCode && cart.discount && (
-              <div className="flex justify-between">
-                <span>Diskon ({cart.promoCode}):</span>
-                <span className="text-green-600 font-medium">-Rp{cart.discount.toLocaleString('id-ID')}</span>
-              </div>
-            )}
-            
-            {/* Total */}
-            <div className="border-t pt-2 mt-2">
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total Pembayaran:</span>
-                <span className="text-[#d63384]">
-                  Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
-                </span>
+              
+              {/* Delivery Cost */}
+              {deliveryQuotation && (
+                <div className="flex justify-between">
+                  <span>Biaya Pengiriman:</span>
+                  <span className="text-gray-900 font-medium">Rp{parseInt(deliveryQuotation.price.total).toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              
+              {/* Discount */}
+              {cart.promoCode && cart.discount && (
+                <div className="flex justify-between">
+                  <span>Diskon ({cart.promoCode}):</span>
+                  <span className="text-green-600 font-medium">-Rp{cart.discount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              
+              {/* Total */}
+              <div className="border-t pt-2 mt-2">
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total Pembayaran:</span>
+                  <span className="text-[#d63384]">
+                    Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+          <Button 
+            onClick={handleSubmit}
+            disabled={hasExceededDistanceLimit || isLoadingQuotation || !deliveryQuotation}
+            className="w-full py-3 sm:py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed h-12 sm:h-14 flex items-center justify-center"
+          >
+            {isLoadingQuotation ? 'Menghitung...' : (hasExceededDistanceLimit ? 'Pilih Lokasi Lain' : (deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'))}
+          </Button>
         </div>
-        <Button 
-          onClick={handleSubmit}
-          disabled={hasExceededDistanceLimit || isLoadingQuotation || !deliveryQuotation}
-          className="w-full py-3 sm:py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoadingQuotation ? 'Menghitung...' : (hasExceededDistanceLimit ? 'Pilih Lokasi Lain' : (deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'))}
-        </Button>
       </div>
 
       {/* Delivery Info Modal */}
