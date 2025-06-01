@@ -4,7 +4,6 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/components/CartContext';
 import Link from 'next/link';
-import Image from 'next/image';
 
 interface AddOn {
   id: string;
@@ -169,22 +168,18 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <Image
+          <img
             ref={mainImgRef}
             src={product.images && product.images.length > 0 ? product.images[mainImageIdx] : '/sample-product.jpg'}
             alt={product.name}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority
-            className={`object-cover rounded-xl select-none transition-transform duration-200 ${slideDirection === 'left' ? '-translate-x-full' : ''} ${slideDirection === 'right' ? 'translate-x-full' : ''}`}
+            className={`object-cover w-full h-full rounded-xl border select-none transition-transform duration-200 ${slideDirection === 'left' ? '-translate-x-full' : ''} ${slideDirection === 'right' ? 'translate-x-full' : ''}`}
+            style={{ aspectRatio: 1 }}
             draggable={false}
           />
           {isAnimating && flyImgStyle && (
-            <Image
+            <img
               src={product.images && product.images.length > 0 ? product.images[mainImageIdx] : '/sample-product.jpg'}
               alt="flying"
-              width={flyImgStyle.width}
-              height={flyImgStyle.height}
               style={flyImgStyle}
             />
           )}
@@ -200,14 +195,7 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
                 aria-label={`Show image ${idx + 1}`}
                 tabIndex={0}
               >
-                <Image
-                  src={img}
-                  alt={`Thumbnail ${idx + 1}`}
-                  fill
-                  sizes="48px"
-                  loading="lazy"
-                  className="object-cover"
-                />
+                <img src={img} alt="thumbnail" className="object-cover w-full h-full" />
               </button>
             ))}
           </div>
