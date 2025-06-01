@@ -1200,7 +1200,7 @@ function CustomerInfoContent() {
 
         {/* Delivery Quotation Section */}
         {(isLoadingQuotation || deliveryQuotation || quotationError) && (
-          <div className="px-3 sm:px-4 md:px-6 pb-4 mb-8">
+          <div className="px-3 sm:px-4 md:px-6 pb-4 mb-4">
             <div className="border-t border-gray-200 pt-4">
               <h3 className="text-lg font-semibold mb-3 flex items-center">
                 <svg className="w-5 h-5 mr-2 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
