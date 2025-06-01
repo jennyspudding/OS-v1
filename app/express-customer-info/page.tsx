@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
+import { useState, useEffect, useRef, Suspense, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '../../components/CartContext';
 import SimpleGoogleMap from '../../components/SimpleGoogleMap';
-import { supabase } from '../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import DistanceExceededModal from '@/components/DistanceExceededModal'; // Import the new modal
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 function validateCoupon(code: string, cartTotal: number, coupons: any[]) {
   const now = new Date();
@@ -62,7 +68,9 @@ function ExpressCustomerInfoContent() {
   const [promoError, setPromoError] = useState("");
   const [promoSuccess, setPromoSuccess] = useState("");
   const [coupons, setCoupons] = useState<any[]>([]);
-  const [mapKey, setMapKey] = useState(0);
+  const [mapKey, setMapKey] = useState(Date.now()); // Use Date.now() for unique key
+  const [isDistanceModalOpen, setIsDistanceModalOpen] = useState(false); // Renamed state
+  const [hasExceededDistanceLimit, setHasExceededDistanceLimit] = useState(false); // New state
 
   // Custom date/time picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -378,10 +386,9 @@ function ExpressCustomerInfoContent() {
 
   // Auto-calculate delivery cost when location is loaded or changes
   useEffect(() => {
-    // Auto-calculate if we have location, data is loaded, no existing quotation, not loading, and component is mounted
-    if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current) {
-      console.log('Auto-calculating delivery cost for location with current vehicle type and toll state');
-      // setVehicleType('MOTORCYCLE'); // Vehicle type should be determined or defaulted elsewhere if needed
+    // Auto-calculate if we have location, data is loaded, no existing quotation, not loading, component is mounted, AND modal is not shown AND no distance limit exceeded
+    if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current && !isDistanceModalOpen && !hasExceededDistanceLimit) {
+      console.log('EXPRESS: Auto-calculating delivery cost for location with current vehicle type and toll state');
       
       // Clear any existing timeout
       if (quotationTimeoutRef.current) {
@@ -405,7 +412,7 @@ function ExpressCustomerInfoContent() {
         }
       };
     }
-  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation, vehicleType, useTollRoad]); // Added vehicleType and useTollRoad
+  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation, vehicleType, useTollRoad, isDistanceModalOpen, hasExceededDistanceLimit]); // Added hasExceededDistanceLimit
 
   useEffect(() => {
     // Prevent repeated processing of URL params
@@ -604,24 +611,19 @@ function ExpressCustomerInfoContent() {
   const getDeliveryQuotationWithVehicleType = async (specificVehicleType: 'MOTORCYCLE' | 'CAR', currentUseTollRoad: boolean) => {
     console.log('🚀 EXPRESS: getDeliveryQuotationWithVehicleType called with:', specificVehicleType, 'and toll:', currentUseTollRoad);
     
-    // Check if component is still mounted
     if (!isMountedRef.current) {
       console.log('Component unmounted, skipping quotation call');
       return;
     }
-    
-    // Prevent multiple simultaneous calls
     if (isLoadingQuotation) {
       console.log('Quotation already loading, skipping this call');
       return;
     }
     
-    // Get coordinates from multiple sources (prioritize session storage)
     let coordinates = null;
     let deliveryAddress = '';
     
     try {
-      // First priority: Express-specific session storage
       const expressLocationData = sessionStorage.getItem('expressLocationData');
       if (expressLocationData) {
         const parsedData = JSON.parse(expressLocationData);
@@ -629,13 +631,11 @@ function ExpressCustomerInfoContent() {
         deliveryAddress = parsedData.alamatLengkap;
         console.log('✅ EXPRESS: Using coordinates from express session storage:', coordinates);
       } 
-      // Second priority: State variables
       else if (selectedLocation) {
         coordinates = { lat: selectedLocation.lat, lng: selectedLocation.lng };
         deliveryAddress = selectedLocation.address;
         console.log('✅ EXPRESS: Using coordinates from state variables:', coordinates);
       }
-      // Third priority: General localStorage
       else {
         const storedLocation = localStorage.getItem('customerSelectedLocation');
         if (storedLocation) {
@@ -649,7 +649,6 @@ function ExpressCustomerInfoContent() {
       console.error('❌ EXPRESS: Error getting coordinates from storage:', error);
     }
     
-    // Only work with precise coordinates
     if (!coordinates || !deliveryAddress) {
       console.log('❌ EXPRESS: No coordinates available, cannot get quotation');
       setQuotationError('Pilih lokasi pengiriman terlebih dahulu menggunakan GPS atau peta');
@@ -661,6 +660,7 @@ function ExpressCustomerInfoContent() {
 
     setIsLoadingQuotation(true);
     setQuotationError(null);
+    // setIsDistanceModalOpen(false); // Keep modal closed initially
 
     try {
       const requestBody: any = {
@@ -668,34 +668,27 @@ function ExpressCustomerInfoContent() {
         recipientName: formData.recipientName || formData.name || 'Express Customer',
         recipientPhone: formData.recipientPhone || formData.phone || '+62123456789',
         serviceType: currentVehicleType,
-        useTollRoad: currentUseTollRoad, // Use the passed parameter
-        // Add express flag to API call
+        useTollRoad: currentUseTollRoad,
         isExpress: true,
         orderType: 'express'
       };
 
-      // Add precise coordinates (essential for LaLaMove)
       requestBody.coordinates = coordinates;
 
-      // Add requested datetime if specified
+      console.log('CLIENT: requestedDateTime before API call:', requestedDateTime);
+
       if (requestedDateTime) {
-        // Convert to ISO 8601 format with timezone
         const dateTime = new Date(requestedDateTime);
         requestBody.isRequestedAt = dateTime.toISOString();
       }
       
       console.log('=== EXPRESS LALAMOVE API REQUEST ===');
-      console.log('🚀 Express coordinates:', coordinates);
-      console.log('🚀 Vehicle type:', currentVehicleType);
-      console.log('🚀 Delivery address:', deliveryAddress);
-      console.log('🚀 Full request body:', requestBody);
+      console.log('Full request body:', requestBody);
       console.log('=== END EXPRESS API REQUEST ===');
       
       const response = await fetch('/api/lalamove/quotation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
 
@@ -707,8 +700,9 @@ function ExpressCustomerInfoContent() {
         setDeliveryQuotation(data.quotation);
         setIsMockQuotation(data.isMock || false);
         setQuotationError(null);
+        setHasExceededDistanceLimit(false); // Reset flag on success
+        setIsDistanceModalOpen(false); // Close modal on success
         
-        // Save successful quotation to storage
         try {
           const quotationData = {
             quotation: data.quotation,
@@ -724,18 +718,28 @@ function ExpressCustomerInfoContent() {
           console.error('❌ EXPRESS: Error saving quotation:', storageError);
         }
         
-        // Show note if using mock data
         if (data.isMock) {
           console.log('⚠️ EXPRESS: Using mock delivery quotation:', data.note || 'API not configured');
         }
       } else {
-        const errorMessage = data.error || 'Failed to get express delivery quotation';
-        setQuotationError(errorMessage);
+        let errorForSessionStorage: string;
+        if (response.status === 400 && data.errorCode === 'DISTANCE_EXCEEDED') {
+          setQuotationError(null);
+          setDeliveryQuotation(null);
+          setHasExceededDistanceLimit(true); // Set flag for distance error
+          setIsDistanceModalOpen(true);      // Open modal for distance error
+          errorForSessionStorage = data.error || 'Jarak pengiriman melebihi batas maksimal 70km.';
+        } else {
+          const generalErrorMessage = data.error || 'Failed to get express delivery quotation';
+          setQuotationError(generalErrorMessage);
+          setHasExceededDistanceLimit(false); // Reset flag for other errors
+          setIsDistanceModalOpen(false);    // Ensure modal is closed for other errors
+          errorForSessionStorage = generalErrorMessage;
+        }
         
-        // Save error to storage for debugging
         try {
           const errorData = {
-            error: errorMessage,
+            error: errorForSessionStorage,
             timestamp: new Date().toISOString(),
             coordinates: coordinates,
             isExpress: true
@@ -749,8 +753,8 @@ function ExpressCustomerInfoContent() {
       console.error('❌ EXPRESS: Error getting quotation:', error);
       const errorMessage = 'Failed to get express delivery quotation';
       setQuotationError(errorMessage);
-      
-      // Save error to storage for debugging
+      setHasExceededDistanceLimit(false); // Reset flag for general catch error
+      setIsDistanceModalOpen(false);    // Ensure modal is closed
       try {
         const errorData = {
           error: errorMessage,
@@ -788,13 +792,9 @@ function ExpressCustomerInfoContent() {
 
   // Handle location selection from map
   const handleLocationSelect = (location: { lat: number; lng: number; address: string }) => {
-    // Improved mount check - more lenient approach
     if (!isMountedRef.current) {
-      // Try to restore mounted state if this is a valid update
       isMountedRef.current = true;
     }
-    
-    // Check if this is the same location as currently selected (with more precise comparison)
     if (selectedLocation && 
         Math.abs(selectedLocation.lat - location.lat) < 0.00001 && 
         Math.abs(selectedLocation.lng - location.lng) < 0.00001 &&
@@ -802,7 +802,6 @@ function ExpressCustomerInfoContent() {
       return;
     }
     
-    // Save to session storage for express
     try {
       const locationSessionData = {
         selectedLocation: location,
@@ -820,25 +819,13 @@ function ExpressCustomerInfoContent() {
       console.error('Error saving location to storage:', error);
     }
     
-    // Update selected location (populates "Lokasi Terpilih" section)
-    setSelectedLocation(prevLocation => location);
+    setSelectedLocation(location);
+    setMapCenter({ lat: location.lat, lng: location.lng });
+    setAlamatLengkap(location.address);
     
-    // Update map center smoothly (no reload/refresh)
-    setMapCenter(prevCenter => ({ lat: location.lat, lng: location.lng }));
-    
-    // Auto-populate "Alamat Lengkap" textarea with the full address
-    setAlamatLengkap(prevAddress => location.address);
-    
-    // Extract and update form location data (province, city, district, postal code)
     const locationData = extractLocationFromAddress(location.address);
-    
     setFormData(prev => {
-      const newFormData = {
-        ...prev,
-        ...locationData
-      };
-      
-      // Save updated form data immediately to storage
+      const newFormData = { ...prev, ...locationData };
       try {
         localStorage.setItem('customerFormData', JSON.stringify(newFormData));
         const sessionData = {
@@ -852,18 +839,14 @@ function ExpressCustomerInfoContent() {
       } catch (error) {
         console.error('Error saving form data:', error);
       }
-      
       return newFormData;
     });
     
-    // Clear existing quotation to trigger recalculation for new address
     setDeliveryQuotation(null);
     setQuotationError(null);
-    
-    // Reset vehicle type to motorcycle for new location
     setVehicleType('MOTORCYCLE');
-    
-    // Force a map key update to refresh the map component
+    setHasExceededDistanceLimit(false); // Reset distance error flag on new location
+    setIsDistanceModalOpen(false);    // Close modal if it was open
     setMapKey(prev => prev + 1);
   };
 
@@ -949,6 +932,13 @@ function ExpressCustomerInfoContent() {
 
     if (!deliveryQuotation) {
       alert('Silakan tunggu perhitungan biaya pengiriman selesai.');
+      return;
+    }
+
+    // Check if distance limit has been exceeded
+    if (hasExceededDistanceLimit) {
+      alert('Jarak pengiriman melebihi batas. Silakan pilih lokasi yang lebih dekat.');
+      setIsDistanceModalOpen(true); // Optionally re-open modal or rely on button being disabled
       return;
     }
 
@@ -1236,7 +1226,7 @@ function ExpressCustomerInfoContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] to-[#f5f1eb] pb-48">
+    <div className="min-h-screen bg-[#FFF8F2] text-[#4A3B32] py-8 px-4 md:px-8 lg:px-16">
       {/* Header */}
       <header className="sticky top-0 z-20 glass-navbar backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
         <div className="flex items-center justify-between px-4 py-3 md:px-8">
@@ -1332,7 +1322,7 @@ function ExpressCustomerInfoContent() {
                   id="useSameName"
                   checked={useSameName}
                   onChange={(e) => handleUseSameNameChange(e.target.checked)}
-                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                  className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                 />
                 <label htmlFor="useSameName" className="ml-2 text-sm text-gray-600">
                   Gunakan nama yang sama
@@ -1361,7 +1351,7 @@ function ExpressCustomerInfoContent() {
                   id="useSamePhone"
                   checked={useSamePhone}
                   onChange={(e) => handleUseSamePhoneChange(e.target.checked)}
-                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                  className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                 />
                 <label htmlFor="useSamePhone" className="ml-2 text-sm text-gray-600">
                   Gunakan nomor telepon yang sama
@@ -1680,7 +1670,7 @@ function ExpressCustomerInfoContent() {
                         type="checkbox"
                         checked={useTollRoad}
                         onChange={(e) => handleTollRoadChange(e.target.checked)}
-                        className="w-4 h-4 accent-white bg-white border border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                        className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                       />
                       <div className="flex-1">
                         <span className="text-sm font-medium text-gray-700">🚗 Pakai Tol</span>
@@ -1741,7 +1731,10 @@ function ExpressCustomerInfoContent() {
                             <div className="flex justify-between">
                               <span className="text-gray-600">Jarak:</span>
                               <span className="text-gray-800">
-                                {(parseInt(deliveryQuotation.distance.value) / 1000).toFixed(1)} km
+                                {deliveryQuotation.distance.unit === 'km' ?
+                                  parseFloat(deliveryQuotation.distance.value).toFixed(1) :
+                                  (parseInt(deliveryQuotation.distance.value) / 1000).toFixed(1)
+                                } km
                               </span>
                             </div>
                             
@@ -1853,7 +1846,7 @@ function ExpressCustomerInfoContent() {
               <div className="flex justify-between font-bold text-lg">
                 <span>Total Pembayaran Express:</span>
                 <span className="text-[#b48a78]">
-                  Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
+                  Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
@@ -1861,10 +1854,11 @@ function ExpressCustomerInfoContent() {
         </div>
         <button 
           onClick={handleSubmit}
-          className="w-full py-4 text-base rounded-full bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b6f47] hover:to-[#b48a78] shadow-lg flex items-center justify-center gap-2"
+          disabled={hasExceededDistanceLimit || isLoadingQuotation || !deliveryQuotation}
+          className="w-full py-4 text-base rounded-full bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b6f47] hover:to-[#b48a78] shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span>Lanjut ke Pembayaran Express</span>
-          <span>⚡</span>
+          {isLoadingQuotation ? 'Menghitung...' : (hasExceededDistanceLimit ? 'Pilih Lokasi Lain' : (deliveryQuotation ? 'Lanjut ke Pembayaran Express' : 'Lanjut ke Pembayaran Express'))}
+          {!isLoadingQuotation && !hasExceededDistanceLimit && <span>⚡</span>}
         </button>
       </div>
 
@@ -1949,20 +1943,18 @@ function ExpressCustomerInfoContent() {
           </div>
         </div>
       )}
+
+      <DistanceExceededModal 
+        isOpen={isDistanceModalOpen} 
+        onClose={() => setIsDistanceModalOpen(false)} 
+      />
     </div>
   );
 }
 
 export default function ExpressCustomerInfoPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] to-[#f5f1eb] flex items-center justify-center">
-        <div className="flex items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#b48a78]"></div>
-          <span className="ml-3 text-[#8b6f47]">Memuat halaman Express...</span>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div>Loading express customer info...</div>}>
       <ExpressCustomerInfoContent />
     </Suspense>
   );

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import SimpleGoogleMap from "@/components/SimpleGoogleMap";
 import { useCart } from "@/components/CartContext";
 import { createClient } from '@supabase/supabase-js';
+import DistanceExceededModal from "@/components/DistanceExceededModal"; // Import the new modal
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,6 +63,8 @@ function CustomerInfoContent() {
   const [promoSuccess, setPromoSuccess] = useState("");
   const [coupons, setCoupons] = useState<any[]>([]);
   const [mapKey, setMapKey] = useState(0);
+  const [isDistanceModalOpen, setIsDistanceModalOpen] = useState(false); // Renamed state
+  const [hasExceededDistanceLimit, setHasExceededDistanceLimit] = useState(false); // New state
 
   // Custom date/time picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -322,10 +325,9 @@ function CustomerInfoContent() {
 
   // Auto-calculate delivery cost when location is loaded or changes
   useEffect(() => {
-    // Auto-calculate if we have location, data is loaded, no existing quotation, not loading, and component is mounted
-    if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current) {
-      console.log('Auto-calculating delivery cost for location with MOTORCYCLE (default no toll)');
-      // setVehicleType('MOTORCYCLE'); // This might be redundant if vehicleType defaults correctly or is set by other flows
+    // Auto-calculate if we have location, data is loaded, no existing quotation, not loading, component is mounted, AND modal is not shown AND no distance limit exceeded
+    if (selectedLocation && isDataLoaded && !deliveryQuotation && !isLoadingQuotation && isMountedRef.current && !isDistanceModalOpen && !hasExceededDistanceLimit) {
+      console.log('Auto-calculating delivery cost for location with current vehicle type and toll state');
       
       if (quotationTimeoutRef.current) {
         clearTimeout(quotationTimeoutRef.current);
@@ -348,7 +350,7 @@ function CustomerInfoContent() {
         }
       };
     }
-  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation, vehicleType, useTollRoad]); // Added vehicleType and useTollRoad to dependencies for correctness
+  }, [selectedLocation, isDataLoaded, deliveryQuotation, isLoadingQuotation, vehicleType, useTollRoad, isDistanceModalOpen, hasExceededDistanceLimit]); // Added hasExceededDistanceLimit to dependencies
 
   useEffect(() => {
     // Prevent repeated processing of URL params
@@ -549,19 +551,14 @@ function CustomerInfoContent() {
   const getDeliveryQuotationWithVehicleType = async (specificVehicleType: 'MOTORCYCLE' | 'CAR', currentUseTollRoad: boolean) => {
     console.log('getDeliveryQuotationWithVehicleType called with:', specificVehicleType, 'and toll:', currentUseTollRoad);
     
-    // Check if component is still mounted
     if (!isMountedRef.current) {
       console.log('Component unmounted, skipping quotation call');
       return;
     }
-    
-    // Prevent multiple simultaneous calls
     if (isLoadingQuotation) {
       console.log('Quotation already loading, skipping this call');
       return;
     }
-    
-    // Only work with precise coordinates
     if (!selectedLocation) {
       console.log('No coordinates available, cannot get quotation');
       setQuotationError('Pilih lokasi pengiriman terlebih dahulu menggunakan GPS atau peta');
@@ -575,6 +572,7 @@ function CustomerInfoContent() {
 
     setIsLoadingQuotation(true);
     setQuotationError(null);
+    // setIsDistanceModalOpen(false); // Keep modal closed unless distance error occurs
 
     try {
       const requestBody: any = {
@@ -582,34 +580,24 @@ function CustomerInfoContent() {
         recipientName: formData.recipientName || formData.name || 'Customer',
         recipientPhone: formData.recipientPhone || formData.phone || '+62123456789',
         serviceType: currentVehicleType,
-        useTollRoad: currentUseTollRoad // Use the passed parameter
+        useTollRoad: currentUseTollRoad
       };
 
-      // Add precise coordinates if available
       if (coordinates) {
         requestBody.coordinates = coordinates;
       }
-
-      // Add requested datetime if specified
       if (requestedDateTime) {
-        // Convert to ISO 8601 format with timezone
         const dateTime = new Date(requestedDateTime);
         requestBody.isRequestedAt = dateTime.toISOString();
       }
       
       console.log('=== FRONTEND DEBUG WITH SPECIFIC TYPE ===');
-      console.log('Specific vehicle type passed:', specificVehicleType);
-      console.log('Current vehicle type state:', vehicleType);
-      console.log('Using vehicle type:', currentVehicleType);
-      console.log('Service type in request:', requestBody.serviceType);
       console.log('Full request body being sent:', requestBody);
       console.log('=== END FRONTEND DEBUG ===');
       
       const response = await fetch('/api/lalamove/quotation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
 
@@ -620,22 +608,33 @@ function CustomerInfoContent() {
       if (data.success) {
         setDeliveryQuotation(data.quotation);
         setIsMockQuotation(data.isMock || false);
-        setQuotationError(null); // Clear any previous errors
-        
-        // Show note if using mock data
+        setQuotationError(null);
+        setHasExceededDistanceLimit(false); // Reset flag on success
+        setIsDistanceModalOpen(false);
         if (data.isMock) {
           console.log('Using mock delivery quotation:', data.note || 'API not configured');
         }
       } else {
-        const errorMessage = data.error || 'Failed to get delivery quotation';
-        setQuotationError(errorMessage);
+        let errorForSessionStorage: string;
+        if (response.status === 400 && data.errorCode === 'DISTANCE_EXCEEDED') {
+          setQuotationError(null);
+          setDeliveryQuotation(null);
+          setHasExceededDistanceLimit(true); // Set flag for distance error
+          setIsDistanceModalOpen(true);      // Open modal for distance error
+          errorForSessionStorage = data.error || 'Jarak pengiriman melebihi batas maksimal 70km.';
+        } else {
+          const generalErrorMessage = data.error || 'Failed to get delivery quotation';
+          setQuotationError(generalErrorMessage);
+          setHasExceededDistanceLimit(false); // Reset flag for other errors
+          setIsDistanceModalOpen(false);    // Ensure modal is closed for other errors
+          errorForSessionStorage = generalErrorMessage;
+        }
         
-        // Save error to storage for debugging
         try {
           const errorData = {
-            error: errorMessage,
+            error: errorForSessionStorage,
             timestamp: new Date().toISOString(),
-            coordinates: coordinates
+            coordinates: coordinates 
           };
           sessionStorage.setItem('lastQuotationError', JSON.stringify(errorData));
         } catch (storageError) {
@@ -646,8 +645,8 @@ function CustomerInfoContent() {
       console.error('Error getting quotation:', error);
       const errorMessage = 'Failed to get delivery quotation';
       setQuotationError(errorMessage);
-      
-      // Save error to storage for debugging
+      setHasExceededDistanceLimit(false); // Reset flag on general catch error
+      setIsDistanceModalOpen(false);    // Ensure modal is closed
       try {
         const errorData = {
           error: errorMessage,
@@ -684,13 +683,9 @@ function CustomerInfoContent() {
 
   // Handle location selection from map
   const handleLocationSelect = (location: { lat: number; lng: number; address: string }) => {
-    // Improved mount check - more lenient approach
     if (!isMountedRef.current) {
-      // Try to restore mounted state if this is a valid update
       isMountedRef.current = true;
     }
-    
-    // Check if this is the same location as currently selected (with more precise comparison)
     if (selectedLocation && 
         Math.abs(selectedLocation.lat - location.lat) < 0.00001 && 
         Math.abs(selectedLocation.lng - location.lng) < 0.00001 &&
@@ -698,7 +693,6 @@ function CustomerInfoContent() {
       return;
     }
     
-    // Save to storage
     try {
       localStorage.setItem('customerSelectedLocation', JSON.stringify(location));
       localStorage.setItem('customerMapCenter', JSON.stringify({ lat: location.lat, lng: location.lng }));
@@ -707,42 +701,26 @@ function CustomerInfoContent() {
       console.error('Error saving location to storage:', error);
     }
     
-    // Update selected location (populates "Lokasi Terpilih" section)
-    setSelectedLocation(prevLocation => location);
+    setSelectedLocation(location);
+    setMapCenter({ lat: location.lat, lng: location.lng });
+    setAlamatLengkap(location.address);
     
-    // Update map center smoothly (no reload/refresh)
-    setMapCenter(prevCenter => ({ lat: location.lat, lng: location.lng }));
-    
-    // Auto-populate "Alamat Lengkap" textarea with the full address
-    setAlamatLengkap(prevAddress => location.address);
-    
-    // Extract and update form location data (province, city, district, postal code)
     const locationData = extractLocationFromAddress(location.address);
-    
     setFormData(prev => {
-      const newFormData = {
-        ...prev,
-        ...locationData
-      };
-      
-      // Save updated form data immediately to storage
+      const newFormData = { ...prev, ...locationData };
       try {
         localStorage.setItem('customerFormData', JSON.stringify(newFormData));
       } catch (error) {
         console.error('Error saving form data:', error);
       }
-      
       return newFormData;
     });
     
-    // Clear existing quotation to trigger recalculation for new address
     setDeliveryQuotation(null);
     setQuotationError(null);
-    
-    // Reset vehicle type to motorcycle for new location
     setVehicleType('MOTORCYCLE');
-    
-    // Force a map key update to refresh the map component
+    setHasExceededDistanceLimit(false); // Reset distance error flag on new location
+    setIsDistanceModalOpen(false);    // Close modal if it was open
     setMapKey(prev => prev + 1);
   };
 
@@ -818,6 +796,13 @@ function CustomerInfoContent() {
 
     if (!deliveryQuotation) {
       alert('Silakan tunggu perhitungan biaya pengiriman selesai.');
+      return;
+    }
+
+    // Check if distance limit has been exceeded
+    if (hasExceededDistanceLimit) {
+      alert('Jarak pengiriman melebihi batas. Silakan pilih lokasi yang lebih dekat.');
+      setIsDistanceModalOpen(true); // Optionally re-open modal or rely on button being disabled
       return;
     }
 
@@ -1047,7 +1032,7 @@ function CustomerInfoContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-48">
+    <div className="min-h-screen bg-[#FFF8F2] text-[#4A3B32] py-8 px-4 md:px-8 lg:px-16">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white flex items-center px-4 py-3 border-b border-gray-200">
         <button className="mr-3" onClick={() => router.back()}>
@@ -1110,7 +1095,7 @@ function CustomerInfoContent() {
                   id="useSameName"
                   checked={useSameName}
                   onChange={(e) => handleUseSameNameChange(e.target.checked)}
-                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                  className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                 />
                 <label htmlFor="useSameName" className="ml-2 text-sm text-gray-600">
                   Gunakan nama yang sama
@@ -1139,7 +1124,7 @@ function CustomerInfoContent() {
                   id="useSamePhone"
                   checked={useSamePhone}
                   onChange={(e) => handleUseSamePhoneChange(e.target.checked)}
-                  className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                  className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                 />
                 <label htmlFor="useSamePhone" className="ml-2 text-sm text-gray-600">
                   Gunakan nomor telepon yang sama
@@ -1448,7 +1433,7 @@ function CustomerInfoContent() {
                         type="checkbox"
                         checked={useTollRoad}
                         onChange={(e) => handleTollRoadChange(e.target.checked)}
-                        className="w-4 h-4 accent-white bg-white border border-gray-300 rounded focus:ring-[#d63384] focus:ring-2"
+                        className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                       />
                       <div className="flex-1">
                         <span className="text-sm font-medium text-gray-700">🚗 Pakai Tol</span>
@@ -1613,7 +1598,7 @@ function CustomerInfoContent() {
               <div className="flex justify-between font-bold text-lg">
                 <span>Total Pembayaran:</span>
                 <span className="text-[#d63384]">
-                  Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
+                  Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
@@ -1621,9 +1606,10 @@ function CustomerInfoContent() {
         </div>
         <Button 
           onClick={handleSubmit}
-          className="w-full py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg"
+          disabled={hasExceededDistanceLimit || isLoadingQuotation || !deliveryQuotation}
+          className="w-full py-4 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'}
+          {isLoadingQuotation ? 'Menghitung...' : (hasExceededDistanceLimit ? 'Pilih Lokasi Lain' : (deliveryQuotation ? 'Lanjut ke Pembayaran' : 'Lanjut ke Pembayaran'))}
         </Button>
       </div>
 
@@ -1705,21 +1691,19 @@ function CustomerInfoContent() {
           </div>
         </div>
       )}
+
+      <DistanceExceededModal 
+        isOpen={isDistanceModalOpen} 
+        onClose={() => setIsDistanceModalOpen(false)} 
+      />
     </div>
   );
 }
 
 export default function CustomerInfoPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#d63384]"></div>
-          <span className="ml-3 text-gray-600">Memuat halaman...</span>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div>Loading customer info...</div>}>
       <CustomerInfoContent />
     </Suspense>
-  ); 
+  );
 }

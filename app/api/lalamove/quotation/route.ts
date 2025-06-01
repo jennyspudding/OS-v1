@@ -269,6 +269,18 @@ export async function POST(request: NextRequest) {
     const deliveryLng = deliveryCoordinates.lng;
     const distanceKm = calculateDistance(storeLat, storeLng, deliveryLat, deliveryLng);
     const distanceMeters = Math.round(distanceKm * 1000);
+
+    // Check if the distance exceeds 70km
+    if (distanceKm > 70) {
+      console.log('Distance exceeds 70km:', distanceKm.toFixed(2));
+      return NextResponse.json(
+        { 
+          error: 'Jarak pengiriman melebihi batas maksimal 70km dari lokasi toko kami. Mohon pilih alamat yang lebih dekat.',
+          errorCode: 'DISTANCE_EXCEEDED' 
+        },
+        { status: 400 }
+      );
+    }
     
     console.log('Distance calculation:', {
       store: { lat: storeLat, lng: storeLng },
