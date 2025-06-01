@@ -9,10 +9,18 @@ import { useCart } from "../components/CartContext";
 import ProductBadge from '@/components/ProductBadge';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 
+// Define the Category type including ranking
+interface Category {
+  id: string; // Assuming id is string (UUID) based on previous admin panel changes
+  name: string;
+  icon_url?: string;
+  ranking: number;
+}
+
 export default function Home() {
-  const [categories, setCategories] = useState<{ id: number; name: string; icon_url?: string }[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const mobileCarouselRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
@@ -93,9 +101,13 @@ export default function Home() {
   const loadCategories = useCallback(async () => {
     try {
       setIsLoadingCategories(true);
-      const { data, error } = await supabase.from('categories').select('id, name, icon_url').order('id', { ascending: true });
+      // Fetch 'id, name, icon_url, ranking' and order by 'ranking'
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name, icon_url, ranking')
+        .order('ranking', { ascending: true });
       if (!error && data) {
-        setCategories(data);
+        setCategories(data as Category[]); // Cast to Category[]
         if (data.length > 0) setSelectedCategory(data[0].id);
       }
     } catch (error) {

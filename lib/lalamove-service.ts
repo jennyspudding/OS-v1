@@ -171,6 +171,7 @@ export async function getLalamoveQuotation(
     const signature = generateSignature(method, path, timestamp, body, LALAMOVE_CONFIG.apiSecret);
     const token = `${LALAMOVE_CONFIG.apiKey}:${timestamp}:${signature}`;
 
+    console.log('Lalamove API Request Payload:', JSON.stringify(payloadData, null, 2));
     console.log('Making Lalamove API request:', {
       url: `${LALAMOVE_CONFIG.baseUrl}${path}`,
       method,

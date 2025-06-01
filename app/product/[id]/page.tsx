@@ -21,8 +21,10 @@ interface Product {
   preparation_time?: number;
 }
 
+const PUDDING_LOYANG_CATEGORY_ID = 'fc2d5e2c-1e09-4e7c-8768-409f2ee8ec72';
+
 // Function to get category-specific add-ons
-function getCategoryAddOns(categoryId: number): AddOn[] {
+function getCategoryAddOns(categoryId: string | number): AddOn[] {
   // Default add-ons for all categories
   const defaultAddOns: AddOn[] = [
     { id: '1', name: 'Extra Vla', price: 30000 },
@@ -33,14 +35,15 @@ function getCategoryAddOns(categoryId: number): AddOn[] {
   const puddingLoyangAddOns: AddOn[] = [
     { id: '1', name: 'Extra Vla', price: 30000 },
     { id: '2', name: 'Topper Lilin', price: 15000 },
-    { id: '3', name: 'Add Tulisan (maks 3 kata)', price: 20000 },
-    { id: '4', name: 'Topping Buah Half', price: 75000 },
-    { id: '5', name: 'Topping Buah Full', price: 100000 },
+    { id: '3', name: 'Add Tulisan (maks. 3 kata)', price: 20000 },
+    { id: '4', name: 'Add buah (half)', price: 75000 },
+    { id: '5', name: 'Add buah (full)', price: 100000 },
+    { id: '6', name: 'Add buah (half + tulisan)', price: 85000 },
   ];
 
   // Return category-specific add-ons
-  switch (categoryId) {
-    case 4: // Pudding Loyang
+  switch (String(categoryId)) {
+    case PUDDING_LOYANG_CATEGORY_ID:
       return puddingLoyangAddOns;
     default:
       return defaultAddOns;

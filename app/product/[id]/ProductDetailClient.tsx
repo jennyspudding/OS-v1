@@ -258,11 +258,11 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
                           : [...prev, addOn.id]
                       );
                     }}
-                    className="w-4 h-4 accent-white bg-white border-gray-300 rounded focus:ring-[#b48a78] focus:ring-2"
+                    className="appearance-none w-4 h-4 bg-white border border-black rounded checked:bg-white checked:border-black focus:ring-offset-0 focus:ring-0 checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22black%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%22/%3E%3C/svg%3E')] checked:bg-center checked:bg-no-repeat"
                   />
                   <span>{addOn.name}</span>
                 </div>
-                <span>{formatRupiah(addOn.price)}</span>
+                <span className="text-gray-600">{formatRupiah(addOn.price)}</span>
               </label>
             ))}
           </div>
