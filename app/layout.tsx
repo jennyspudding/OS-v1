@@ -5,11 +5,14 @@ import { CartProvider } from "@/components/CartContext";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import IOSInstallInstructions from "@/components/IOSInstallInstructions";
 import ConditionalWhatsAppButton from "@/components/ConditionalWhatsAppButton";
+import ClientWrapper from "@/components/ClientWrapper";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: 'swap',
+  preload: true,
+  fallback: ['system-ui', 'arial'],
 });
 
 const poppins = Poppins({
@@ -17,6 +20,8 @@ const poppins = Poppins({
   variable: "--font-poppins",
   weight: ['300', '400', '500', '600', '700'],
   display: 'swap',
+  preload: true,
+  fallback: ['system-ui', 'arial'],
 });
 
 const playfair = Playfair_Display({
@@ -24,6 +29,8 @@ const playfair = Playfair_Display({
   variable: "--font-playfair",
   weight: ['400', '500', '600', '700'],
   display: 'swap',
+  preload: true,
+  fallback: ['Georgia', 'serif'],
 });
 
 export const metadata: Metadata = {
@@ -160,12 +167,14 @@ export default function RootLayout({
           <div className="fixed inset-0 bg-[radial-gradient(circle_at_25%_25%,_rgba(180,138,120,0.05)_0%,_transparent_50%),_radial-gradient(circle_at_75%_75%,_rgba(212,165,116,0.05)_0%,_transparent_50%)] pointer-events-none" />
           
           <CartProvider>
-            <div className="relative z-10">
-              {children}
-            </div>
-            <PWAInstallPrompt />
-            <IOSInstallInstructions />
-            <ConditionalWhatsAppButton />
+            <ClientWrapper>
+              <div className="relative z-10">
+                {children}
+              </div>
+              <PWAInstallPrompt />
+              <IOSInstallInstructions />
+              <ConditionalWhatsAppButton />
+            </ClientWrapper>
           </CartProvider>
         </div>
       </body>

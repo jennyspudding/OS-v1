@@ -13,8 +13,11 @@ export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
   const router = useRouter();
 
-  // Calculate total price
-  const total = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Calculate total price including add-ons
+  const total = cart.items.reduce((sum, item) => {
+    const addOnsTotal = item.addOns ? item.addOns.reduce((addOnSum, addOn) => addOnSum + addOn.price, 0) : 0;
+    return sum + (item.price + addOnsTotal) * item.quantity;
+  }, 0);
   const isCartEmpty = cart.items.length === 0;
 
   return (
@@ -53,12 +56,14 @@ export default function CartPage() {
                     )}
                   </div>
                   <div className="font-bold text-xs mb-1 text-black">
-                    {formatRupiah(item.price * item.quantity)}
+                    {formatRupiah((item.price + (item.addOns ? item.addOns.reduce((sum, addOn) => sum + addOn.price, 0) : 0)) * item.quantity)}
                   </div>
                   {item.addOns && item.addOns.length > 0 && (
                     <div className="flex flex-col gap-0.5 mb-1">
                       {item.addOns.map(a => (
-                        <div key={a.id} className="text-xs text-gray-500 truncate">{a.name}</div>
+                        <div key={a.id} className="text-xs text-gray-500 truncate">
+                          {a.name} (+{formatRupiah(a.price)})
+                        </div>
                       ))}
                     </div>
                   )}
