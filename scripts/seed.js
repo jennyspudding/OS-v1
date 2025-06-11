@@ -28,7 +28,7 @@ const puddingPhotos = [
   'https://lbinjgbiugpvukqjclwd.supabase.co/storage/v1/object/public/product-photo/WhatsApp Image 2025-05-25 at 16.37.41.jpeg'
 ];
 
-// 9 Categories for Jenny's Pudding - Updated list
+// 9 Categories for Jenny's Pudding - Use original URLs (will be replaced by admin-uploaded icons)
 const categories = [
   { name: 'Pudding Loyang', icon_url: 'https://images.unsplash.com/photo-1541599468348-e96984315921?w=100&h=100&fit=crop' },
   { name: 'Pudding Tumpeng', icon_url: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=100&h=100&fit=crop' },

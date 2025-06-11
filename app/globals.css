@@ -604,11 +604,15 @@ a {
     overflow: hidden;
     border-radius: 16px;
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    contain: layout style paint;
+    transform: translateZ(0);
   }
   
   .category-icon-container img {
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.2s ease-in-out;
     will-change: opacity;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .category-icon-container img[data-loaded="true"] {
@@ -617,6 +621,19 @@ a {
   
   .category-icon-container img[data-loaded="false"] {
     opacity: 0;
+  }
+  
+  /* GPU acceleration for category icons */
+  .category-icon-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: inherit;
+    z-index: -1;
+    transform: translateZ(0);
   }
   
   @keyframes shimmer {

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface CategoryIconProps {
   iconUrl?: string;
@@ -20,6 +20,23 @@ export default function CategoryIcon({
 }: CategoryIconProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  // Optimized loading for both base64 data URLs (admin-uploaded) and external URLs
+  useEffect(() => {
+    if (iconUrl && !imageError && !imageLoaded) {
+      // If it's a base64 data URL (admin-uploaded icon), it loads instantly
+      if (iconUrl.startsWith('data:image/')) {
+        setImageLoaded(true);
+        return;
+      }
+      
+      // For external URLs, preload for faster display
+      const img = new window.Image();
+      img.src = iconUrl;
+      img.onload = () => setImageLoaded(true);
+      img.onerror = () => setImageError(true);
+    }
+  }, [iconUrl, imageError, imageLoaded]);
 
   const sizeClasses = {
     sm: 'w-12 h-12',
@@ -50,18 +67,18 @@ export default function CategoryIcon({
               height={iconSize[size].height}
               className={`rounded-2xl object-cover ${sizeClasses[size]} ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
-              } transition-opacity duration-300`}
-              loading="eager"
-              priority
-              quality={75}
+              } transition-opacity duration-200`}
+              loading={iconUrl.startsWith('data:image/') ? "eager" : "lazy"}
+              quality={iconUrl.startsWith('data:image/') ? 100 : 75}
               placeholder="blur"
-              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+              blurDataURL="data:image/webp;base64,UklGRhwAAABXRUJQVlA4TBAAAAAvoAAAAEYoAABE///+A0A="
               onLoad={() => setImageLoaded(true)}
               onError={() => {
                 setImageError(true);
                 setImageLoaded(true);
               }}
               sizes="(max-width: 768px) 56px, 64px"
+              unoptimized={iconUrl.startsWith('data:image/')}
             />
           </div>
         ) : (
