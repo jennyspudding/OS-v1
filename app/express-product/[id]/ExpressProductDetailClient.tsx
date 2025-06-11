@@ -20,6 +20,7 @@ interface ExpressProduct {
   category_id: number;
   stock_quantity: number;
   preparation_time?: number;
+  sizes?: string[] | any[];
 }
 
 export type ExpressProductDetailClientProps = { product: ExpressProduct; addOns: AddOn[] };
@@ -106,6 +107,23 @@ export default function ExpressProductDetailClient({ product, addOns }: ExpressP
           <div>
             <h1 className="text-2xl font-bold text-[#b48a78] mb-2">{product.name}</h1>
             <p className="text-gray-600 text-sm">{product.description}</p>
+            
+            {/* Sizes */}
+            {product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && (
+              <div className="mt-3">
+                <span className="font-semibold block mb-2 text-sm text-[#8b5a3c]">Available Sizes</span>
+                <div className="flex flex-wrap gap-2">
+                  {product.sizes.map((size: any, idx: number) => (
+                    <span 
+                      key={idx} 
+                      className="bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 text-[#8b5a3c] px-3 py-1 rounded-full text-xs font-medium border border-[#b48a78]/30"
+                    >
+                      {typeof size === 'object' ? (size.name || 'Custom Size') : size}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Stock Info */}

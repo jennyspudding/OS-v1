@@ -18,6 +18,7 @@ interface Product {
   price: number;
   images: string[];
   category_id: number;
+  sizes?: string[] | any[];
 }
 
 export type ProductDetailClientProps = { product: Product; addOns: AddOn[] };
@@ -220,6 +221,23 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
           <span className="font-semibold text-xs">Price</span>
           <span className="font-bold text-base">{formatRupiah(product.price)}</span>
         </div>
+        
+        {/* Sizes */}
+        {product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && (
+          <div className="mb-3">
+            <span className="font-semibold block mb-2 text-xs">Available Sizes</span>
+            <div className="flex flex-wrap gap-2">
+              {product.sizes.map((size: any, idx: number) => (
+                <span 
+                  key={idx} 
+                  className="bg-[#f5e1d8] text-[#8b5a3c] px-3 py-1 rounded-full text-xs font-medium border border-[#e9cfc0]"
+                >
+                  {typeof size === 'object' ? (size.name || 'Custom Size') : size}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-3">
           <span className="font-semibold text-xs">Quantity</span>
           <div className="flex items-center gap-2">

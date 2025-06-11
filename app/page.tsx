@@ -452,7 +452,7 @@ export default function Home() {
       </header>
       
       {/* Enhanced Search Bar */}
-      <div className="sticky top-[72px] z-10 glass-navbar backdrop-blur-xl px-3 py-3 border-b border-white/10 md:px-8 md:py-4">
+      <div className="sticky top-[72px] z-10 glass-navbar backdrop-blur-xl px-3 py-2 border-b border-white/10 md:px-8 md:py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-2 md:gap-3">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none md:pl-4">
@@ -516,7 +516,7 @@ export default function Home() {
       
       {/* Enhanced Hero Banner */}
       {!isSearching && (
-        <section className="relative w-full py-2 md:py-4">
+        <section className="relative w-full py-1 md:py-2">
           <div className="absolute inset-0 bg-gradient-to-r from-[#ffe9ea]/50 via-transparent to-[#fef3f3]/50" />
           <div className="relative max-w-7xl mx-auto px-3 md:px-8">
             {/* Mobile: Enhanced Swipeable Carousel */}
@@ -646,9 +646,9 @@ export default function Home() {
       
       {/* Enhanced Categories Section */}
       {!isSearching && (
-        <section className="relative py-1 md:py-3">
+        <section className="relative py-0.5 md:py-1">
           <div className="max-w-7xl mx-auto px-3 md:px-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-2 pt-2 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0">
+            <div className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-1 pt-1 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0">
               
               {/* Express Store - First Category Item */}
               <div className="flex flex-col items-center snap-start min-w-[72px] pt-2">
@@ -714,10 +714,10 @@ export default function Home() {
       )}
       
       {/* Enhanced Product Grid */}
-      <section className="relative py-2 px-3 md:py-4 md:px-8 pb-24 md:pb-16">
+      <section className="relative py-1 px-3 md:py-2 md:px-8 pb-24 md:pb-16">
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
-          <div className="mb-4 text-center md:mb-6">
+          <div className="mb-2 text-center md:mb-4">
             <h2 className="text-2xl font-bold text-display text-[#b48a78] mb-2 md:text-4xl font-display">
               {isSearching ? `Hasil Pencarian` : (selectedCategoryObj?.name || "Semua Produk")}
             </h2>
