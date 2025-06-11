@@ -58,6 +58,24 @@ export default function CartPage() {
                   <div className="font-bold text-xs mb-1 text-black">
                     {formatRupiah((item.price + (item.addOns ? item.addOns.reduce((sum, addOn) => sum + addOn.price, 0) : 0)) * item.quantity)}
                   </div>
+                  {item.selectedSize && (
+                    <div className="text-xs text-[#8b5a3c] mb-1 font-medium">
+                      📏 {item.selectedSize.name}
+                      {item.selectedSize.priceAdd > 0 && (
+                        <span className="text-gray-500"> (+{formatRupiah(item.selectedSize.priceAdd)})</span>
+                      )}
+                    </div>
+                  )}
+                  {item.selectedFlavor && (
+                    <div className="text-xs text-[#8b5a3c] mb-1 font-medium">
+                      🍫 Flavor: {item.selectedFlavor.name}
+                    </div>
+                  )}
+                  {item.selectedColor && (
+                    <div className="text-xs text-[#8b5a3c] mb-1 font-medium">
+                      {item.selectedColor.emoji} Color: {item.selectedColor.name}
+                    </div>
+                  )}
                   {item.addOns && item.addOns.length > 0 && (
                     <div className="flex flex-col gap-0.5 mb-1">
                       {item.addOns.map(a => (

@@ -598,6 +598,40 @@ a {
     margin-top: 0px !important;
   }
   
+  /* Optimize category icon loading */
+  .category-icon-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  }
+  
+  .category-icon-container img {
+    transition: opacity 0.3s ease-in-out;
+    will-change: opacity;
+  }
+  
+  .category-icon-container img[data-loaded="true"] {
+    opacity: 1;
+  }
+  
+  .category-icon-container img[data-loaded="false"] {
+    opacity: 0;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 1.5s infinite;
+  }
+  
   .category-container {
     display: flex;
     gap: 12px;

@@ -23,6 +23,134 @@ interface ExpressProduct {
   sizes?: string[] | any[];
 }
 
+// Define size options for Pudding Tart category
+interface SizeOption {
+  id: string;
+  name: string;
+  diameter: string;
+  priceAdd: number;
+}
+
+// Define flavor and color options for Pudding Flower Bouquet category
+interface FlavorOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface ColorOption {
+  id: string;
+  name: string;
+  color: string;
+  emoji: string;
+}
+
+const PUDDING_TART_CATEGORY_ID = '603c267a-f47d-420f-a28c-6a797360ddff';
+
+const PUDDING_TART_SIZE_OPTIONS: SizeOption[] = [
+  {
+    id: '15cm',
+    name: 'Diameter 15 cm',
+    diameter: '15 cm',
+    priceAdd: 0 // normal price
+  },
+  {
+    id: '20cm', 
+    name: 'Diameter 20 cm',
+    diameter: '20 cm',
+    priceAdd: 160000 // add Rp 160,000
+  }
+];
+
+const PUDDING_FLOWER_BOUQUET_CATEGORY_ID = 'aebc65b1-b9d6-4b23-a979-92b3e552627f';
+
+const PUDDING_FLOWER_BOUQUET_FLAVORS: FlavorOption[] = [
+  {
+    id: 'choco',
+    name: 'Chocolate',
+    description: 'Rich chocolate flavor'
+  },
+  {
+    id: 'mocca',
+    name: 'Mocca',
+    description: 'Coffee mocca blend'
+  },
+  {
+    id: 'taro',
+    name: 'Taro',
+    description: 'Purple taro flavor'
+  }
+];
+
+const PUDDING_FLOWER_BOUQUET_COLORS: ColorOption[] = [
+  {
+    id: 'pink',
+    name: 'Pink',
+    color: '#FF69B4',
+    emoji: '🌸'
+  },
+  {
+    id: 'blue',
+    name: 'Blue', 
+    color: '#4169E1',
+    emoji: '💙'
+  },
+  {
+    id: 'purple',
+    name: 'Purple',
+    color: '#9932CC',
+    emoji: '💜'
+  },
+  {
+    id: 'red',
+    name: 'Red',
+    color: '#DC143C',
+    emoji: '❤️'
+  },
+  {
+    id: 'orange',
+    name: 'Orange',
+    color: '#FF8C00',
+    emoji: '🧡'
+  },
+  {
+    id: 'pink-red',
+    name: 'Pink Red',
+    color: 'linear-gradient(45deg, #FF69B4, #DC143C)',
+    emoji: '🌺'
+  },
+  {
+    id: 'pink-blue',
+    name: 'Pink Blue',
+    color: 'linear-gradient(45deg, #FF69B4, #4169E1)',
+    emoji: '🌷'
+  },
+  {
+    id: 'pink-yellow-orange',
+    name: 'Pink Sunset',
+    color: 'linear-gradient(45deg, #FF69B4, #FFD700, #FF8C00)',
+    emoji: '🌻'
+  },
+  {
+    id: 'pink-purple',
+    name: 'Pink Purple',
+    color: 'linear-gradient(45deg, #FF69B4, #9932CC)',
+    emoji: '🌼'
+  },
+  {
+    id: 'purple-blue',
+    name: 'Purple Blue',
+    color: 'linear-gradient(45deg, #9932CC, #4169E1)',
+    emoji: '💐'
+  },
+  {
+    id: 'purple-red',
+    name: 'Purple Red',
+    color: 'linear-gradient(45deg, #9932CC, #DC143C)',
+    emoji: '🌹'
+  }
+];
+
 export type ExpressProductDetailClientProps = { product: ExpressProduct; addOns: AddOn[] };
 
 function formatRupiah(num: number) {
@@ -33,24 +161,44 @@ export default function ExpressProductDetailClient({ product, addOns }: ExpressP
   const [quantity, setQuantity] = useState(1);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [specialRequest, setSpecialRequest] = useState('');
+  const [selectedSize, setSelectedSize] = useState<string>('15cm'); // default to 15cm
+  const [selectedFlavor, setSelectedFlavor] = useState<string>('choco'); // default to chocolate
+  const [selectedColor, setSelectedColor] = useState<string>('pink'); // default to pink
   const router = useRouter();
   const { addToCart, cart } = useCart();
 
+  // Check if this is a Pudding Tart product
+  const isPuddingTart = product.category_id.toString() === PUDDING_TART_CATEGORY_ID;
+  
+  // Check if this is a Pudding Flower Bouquet product
+  const isPuddingFlowerBouquet = product.category_id.toString() === PUDDING_FLOWER_BOUQUET_CATEGORY_ID;
+  
+  // Get selected size details
+  const selectedSizeOption = PUDDING_TART_SIZE_OPTIONS.find(size => size.id === selectedSize);
+  const sizePrice = selectedSizeOption ? selectedSizeOption.priceAdd : 0;
+  
+  // Get selected flavor and color details
+  const selectedFlavorOption = PUDDING_FLOWER_BOUQUET_FLAVORS.find(flavor => flavor.id === selectedFlavor);
+  const selectedColorOption = PUDDING_FLOWER_BOUQUET_COLORS.find(color => color.id === selectedColor);
+
   // Calculate total price
   const addOnsTotal = addOns.filter(a => selectedAddOns.includes(a.id)).reduce((sum, a) => sum + a.price, 0);
-  const totalPrice = (product.price + addOnsTotal) * quantity;
+  const basePrice = product.price + (isPuddingTart ? sizePrice : 0);
+  const totalPrice = (basePrice + addOnsTotal) * quantity;
 
   const handleAddToExpressCart = () => {
     addToCart({
       id: product.id,
       name: product.name,
       image: product.images && product.images.length > 0 ? product.images[0] : '/logo.png',
-      price: product.price,
+      price: basePrice,
       quantity,
       category: 'Express',
       addOns: addOns.filter(a => selectedAddOns.includes(a.id)),
       specialRequest,
-      // @ts-ignore - extending CartItem interface for express items
+      selectedSize: isPuddingTart ? selectedSizeOption : undefined,
+      selectedFlavor: isPuddingFlowerBouquet ? selectedFlavorOption : undefined,
+      selectedColor: isPuddingFlowerBouquet ? selectedColorOption : undefined,
       isExpress: true,
       source: 'express'
     });
@@ -108,8 +256,47 @@ export default function ExpressProductDetailClient({ product, addOns }: ExpressP
             <h1 className="text-2xl font-bold text-[#b48a78] mb-2">{product.name}</h1>
             <p className="text-gray-600 text-sm">{product.description}</p>
             
-            {/* Sizes */}
-            {product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && (
+            {/* Size Options for Pudding Tart */}
+            {isPuddingTart && (
+              <div className="mt-3">
+                <span className="font-semibold block mb-2 text-sm text-[#8b5a3c]">Size Options</span>
+                <div className="flex flex-col gap-2">
+                  {PUDDING_TART_SIZE_OPTIONS.map((sizeOption) => (
+                    <label
+                      key={sizeOption.id}
+                      className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-[#b48a78]/5 hover:to-[#d4a574]/5 transition-colors"
+                      style={{
+                        borderColor: selectedSize === sizeOption.id ? '#b48a78' : '#e5e7eb',
+                        background: selectedSize === sizeOption.id ? 'linear-gradient(to right, #b48a78/10, #d4a574/10)' : 'white'
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="size"
+                          value={sizeOption.id}
+                          checked={selectedSize === sizeOption.id}
+                          onChange={(e) => setSelectedSize(e.target.value)}
+                          className="w-4 h-4 text-[#b48a78] border-gray-300 focus:ring-[#b48a78]"
+                        />
+                        <div>
+                          <div className="text-sm font-medium">{sizeOption.name}</div>
+                          {sizeOption.priceAdd > 0 && (
+                            <div className="text-xs text-gray-500">+{formatRupiah(sizeOption.priceAdd)}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-sm font-semibold text-[#8b5a3c]">
+                        {formatRupiah(product.price + sizeOption.priceAdd)}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Original Sizes (for non-Pudding Tart products) */}
+            {!isPuddingTart && product.sizes && Array.isArray(product.sizes) && product.sizes.length > 0 && (
               <div className="mt-3">
                 <span className="font-semibold block mb-2 text-sm text-[#8b5a3c]">Available Sizes</span>
                 <div className="flex flex-wrap gap-2">
@@ -124,6 +311,75 @@ export default function ExpressProductDetailClient({ product, addOns }: ExpressP
                 </div>
               </div>
             )}
+            
+            {/* Flavor and Color Options for Pudding Flower Bouquet */}
+            {isPuddingFlowerBouquet && (
+              <>
+                {/* Flavor Selection */}
+                <div className="mt-3">
+                  <span className="font-semibold block mb-2 text-sm text-[#8b5a3c]">Choose Flavor</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PUDDING_FLOWER_BOUQUET_FLAVORS.map((flavorOption) => (
+                      <label
+                        key={flavorOption.id}
+                        className="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-[#b48a78]/5 hover:to-[#d4a574]/5 transition-colors text-center"
+                        style={{
+                          borderColor: selectedFlavor === flavorOption.id ? '#b48a78' : '#e5e7eb',
+                          background: selectedFlavor === flavorOption.id ? 'linear-gradient(to right, #b48a78/10, #d4a574/10)' : 'white'
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="flavor"
+                          value={flavorOption.id}
+                          checked={selectedFlavor === flavorOption.id}
+                          onChange={(e) => setSelectedFlavor(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="text-sm font-medium mb-1">{flavorOption.name}</div>
+                        <div className="text-xs text-gray-500">{flavorOption.description}</div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Color Selection */}
+                <div className="mt-3">
+                  <span className="font-semibold block mb-2 text-sm text-[#8b5a3c]">Choose Color</span>
+                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    {PUDDING_FLOWER_BOUQUET_COLORS.map((colorOption) => (
+                      <label
+                        key={colorOption.id}
+                        className="flex flex-col items-center p-3 border rounded-lg cursor-pointer hover:bg-gradient-to-r hover:from-[#b48a78]/5 hover:to-[#d4a574]/5 transition-colors text-center"
+                        style={{
+                          borderColor: selectedColor === colorOption.id ? '#b48a78' : '#e5e7eb',
+                          background: selectedColor === colorOption.id ? 'linear-gradient(to right, #b48a78/10, #d4a574/10)' : 'white'
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="color"
+                          value={colorOption.id}
+                          checked={selectedColor === colorOption.id}
+                          onChange={(e) => setSelectedColor(e.target.value)}
+                          className="sr-only"
+                        />
+                                                 <div className="text-2xl mb-1">{colorOption.emoji}</div>
+                         <div 
+                           className="w-6 h-6 rounded-full border-2 border-white shadow-sm mb-1"
+                           style={{ 
+                             background: colorOption.color.includes('gradient') 
+                               ? colorOption.color 
+                               : colorOption.color 
+                           }}
+                         ></div>
+                         <div className="text-xs font-medium">{colorOption.name}</div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Stock Info */}
@@ -137,7 +393,7 @@ export default function ExpressProductDetailClient({ product, addOns }: ExpressP
           {/* Price */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
-              <span className="text-lg font-bold text-[#b48a78]">{formatRupiah(product.price)}</span>
+              <span className="text-lg font-bold text-[#b48a78]">{formatRupiah(basePrice)}</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}

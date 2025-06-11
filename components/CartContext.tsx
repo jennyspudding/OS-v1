@@ -15,6 +15,9 @@ export interface CartItem {
   specialRequest?: string;
   isExpress?: boolean;
   source?: 'express' | 'regular';
+  selectedSize?: { id: string; name: string; diameter: string; priceAdd: number };
+  selectedFlavor?: { id: string; name: string; description: string };
+  selectedColor?: { id: string; name: string; color: string; emoji: string };
 }
 
 export interface CartState {
@@ -38,12 +41,15 @@ function cartReducer(state: CartState, action: any): CartState {
     case "LOAD":
       return { items: action.items };
     case "ADD": {
-      // If item exists (same id and addOns and specialRequest), increase quantity
+      // If item exists (same id and addOns and specialRequest and selectedSize and selectedFlavor and selectedColor), increase quantity
       const idx = state.items.findIndex(
         (i) =>
           i.id === action.item.id &&
           JSON.stringify(i.addOns) === JSON.stringify(action.item.addOns) &&
-          i.specialRequest === action.item.specialRequest
+          i.specialRequest === action.item.specialRequest &&
+          JSON.stringify(i.selectedSize) === JSON.stringify(action.item.selectedSize) &&
+          JSON.stringify(i.selectedFlavor) === JSON.stringify(action.item.selectedFlavor) &&
+          JSON.stringify(i.selectedColor) === JSON.stringify(action.item.selectedColor)
       );
       if (idx > -1) {
         const items = [...state.items];

@@ -8,6 +8,8 @@ import Link from "next/link";
 import { useCart } from "../components/CartContext";
 import ProductBadge from '@/components/ProductBadge';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
+import CategoryIcon from '@/components/CategoryIcon';
+import CategoryIconSkeleton from '@/components/CategoryIconSkeleton';
 
 // Define the Category type including ranking
 interface Category {
@@ -97,7 +99,7 @@ export default function Home() {
     }
   }, []);
 
-  // Load categories with loading state
+  // Load categories with loading state and preload images
   const loadCategories = useCallback(async () => {
     try {
       setIsLoadingCategories(true);
@@ -109,6 +111,16 @@ export default function Home() {
       if (!error && data) {
         setCategories(data as Category[]); // Cast to Category[]
         if (data.length > 0) setSelectedCategory(data[0].id);
+        
+        // Preload category icons for better performance
+        data.forEach((category: Category) => {
+          if (category.icon_url) {
+            const img = new window.Image();
+            img.src = category.icon_url;
+            // Prefetch with low priority
+            img.loading = 'lazy';
+          }
+        });
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -675,37 +687,17 @@ export default function Home() {
 
               {/* Regular Categories */}
               {isLoadingCategories ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex flex-col items-center snap-start min-w-[72px] pt-2">
-                    <div className="w-14 h-14 bg-gray-200 rounded-2xl animate-pulse md:w-16 md:h-16 mb-1"></div>
-                    <div className="w-12 h-3 bg-gray-200 rounded animate-pulse"></div>
-                  </div>
-                ))
+                <CategoryIconSkeleton count={6} />
               ) : (
                 categories.map((cat) => (
-                  <div key={cat.id} className="flex flex-col items-center snap-start min-w-[72px] pt-2">
-                    <button
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
-                    >
-                      {cat.icon_url ? (
-                        <Image 
-                          src={cat.icon_url} 
-                          alt={cat.name} 
-                          width={56} 
-                          height={56}
-                          className="rounded-2xl object-cover w-14 h-14 md:w-16 md:h-16" 
-                        />
-                      ) : (
-                        <div className="w-14 h-14 bg-[#b48a78]/10 rounded-2xl flex items-center justify-center md:w-16 md:h-16">
-                          <span className="text-xl md:text-2xl">🍮</span>
-                        </div>
-                      )}
-                    </button>
-                    <span className="text-xs font-medium text-center font-brand max-w-[72px] leading-tight text-[#b48a78] md:text-sm">
-                      {cat.name}
-                    </span>
-                  </div>
+                  <CategoryIcon
+                    key={cat.id}
+                    iconUrl={cat.icon_url}
+                    categoryName={cat.name}
+                    isSelected={selectedCategory === cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    size="md"
+                  />
                 ))
               )}
             </div>

@@ -121,6 +121,14 @@ export default function RootLayout({
         {/* DNS Prefetch for better performance */}
         <link rel="dns-prefetch" href="//www.google-analytics.com" />
         
+        {/* Preconnect to external image domains for faster loading */}
+        <link rel="preconnect" href="https://images.unsplash.com" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        
+        {/* Resource hints for better performance */}
+        <link rel="preload" href="/logo.png" as="image" />
+        <link rel="prefetch" href="/sample-product.jpg" as="image" />
+        
         {/* Apple Splash Screens */}
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-2048-2732.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-2732-2048.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" />

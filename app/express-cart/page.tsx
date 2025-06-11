@@ -105,6 +105,38 @@ export default function ExpressCartPage() {
                         </h4>
                         <p className="text-sm text-gray-500 mt-1">{item.category}</p>
                         
+                        {/* Selected Size */}
+                        {item.selectedSize && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500 mb-1">Size:</p>
+                            <span className="text-xs bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 text-[#8b5a3c] px-2 py-1 rounded-md font-medium">
+                              📏 {item.selectedSize.name}
+                              {item.selectedSize.priceAdd > 0 && (
+                                <span className="text-gray-500"> (+Rp {item.selectedSize.priceAdd.toLocaleString('id-ID')})</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Selected Flavor and Color */}
+                        {(item.selectedFlavor || item.selectedColor) && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500 mb-1">Customization:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {item.selectedFlavor && (
+                                <span className="text-xs bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 text-[#8b5a3c] px-2 py-1 rounded-md font-medium">
+                                  🍫 {item.selectedFlavor.name}
+                                </span>
+                              )}
+                              {item.selectedColor && (
+                                <span className="text-xs bg-gradient-to-r from-[#b48a78]/20 to-[#d4a574]/20 text-[#8b5a3c] px-2 py-1 rounded-md font-medium">
+                                  {item.selectedColor.emoji} {item.selectedColor.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* Add-ons */}
                         {item.addOns && item.addOns.length > 0 && (
                           <div className="mt-2">
