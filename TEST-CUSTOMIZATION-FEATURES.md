@@ -138,7 +138,24 @@ This document outlines how to test the customization features implemented:
 5. **Cross-browser Testing**: Test on different browsers for consistency
 6. **Mobile Testing**: Verify responsive design on mobile devices
 
-### 7. Success Criteria
+### 7. Free Vla Bonus Information
+
+#### 7.1 Free Vla Display
+- **Test**: Navigate to products in categories with free vla bonus
+- **Category IDs**: 
+  - fc2d5e2c-1e09-4e7c-8768-409f2ee8ec72
+  - 4e692cca-aec9-4fe4-97dc-6066a27fcec4
+  - 603c267a-f47d-420f-a28c-6a797360ddff
+  - c1027fbf-ea84-479d-8721-d773dd3ec2a6
+  - aebc65b1-b9d6-4b23-a979-92b3e552627f
+- **Expected**: 
+  - Green info box displays below price section
+  - Shows "Free Bonus!" header with bottle emoji 🍼
+  - Text: "Free 1 Botol Vla (250ml) / pudding"
+- **Verify**: Information is display-only and doesn't affect cart
+- **Verify**: Same display on both regular and express product pages
+
+### 8. Success Criteria
 
 ✅ Size selection works only for Pudding Tart category
 ✅ Flavor/color selection works only for Pudding Flower Bouquet category  
@@ -146,5 +163,6 @@ This document outlines how to test the customization features implemented:
 ✅ Cart correctly handles different customizations as separate items
 ✅ UI is consistent between regular and express pages
 ✅ All customization details are preserved and displayed
+✅ Free vla bonus information displays for specified categories
 ✅ No impact on other product categories
 ✅ Responsive design works on all screen sizes 

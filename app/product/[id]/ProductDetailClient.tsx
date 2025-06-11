@@ -45,6 +45,22 @@ interface ColorOption {
 
 const PUDDING_TART_CATEGORY_ID = '603c267a-f47d-420f-a28c-6a797360ddff';
 
+// Categories that include free vla bottle
+const FREE_VLA_CATEGORY_IDS = [
+  'fc2d5e2c-1e09-4e7c-8768-409f2ee8ec72',
+  '4e692cca-aec9-4fe4-97dc-6066a27fcec4',
+  '603c267a-f47d-420f-a28c-6a797360ddff',
+  'c1027fbf-ea84-479d-8721-d773dd3ec2a6',
+  'aebc65b1-b9d6-4b23-a979-92b3e552627f'
+];
+
+// Specific products that include free cup vla
+const FREE_CUP_VLA_PRODUCT_IDS = [
+  'a95ee4fe-03e9-4c6b-b5bb-4e764f6b160a',
+  'b2f6f00e-8db2-4df4-8438-113b3c833cd6',
+  '86035dc6-6054-4e65-a911-ab88319eaa20'
+];
+
 const PUDDING_TART_SIZE_OPTIONS: SizeOption[] = [
   {
     id: '15cm',
@@ -179,6 +195,12 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
   
   // Check if this is a Pudding Flower Bouquet product
   const isPuddingFlowerBouquet = product.category_id.toString() === PUDDING_FLOWER_BOUQUET_CATEGORY_ID;
+  
+  // Check if this category includes free vla bottle
+  const includesFreeVla = FREE_VLA_CATEGORY_IDS.includes(product.category_id.toString());
+  
+  // Check if this specific product includes free cup vla
+  const includesFreeCupVla = FREE_CUP_VLA_PRODUCT_IDS.includes(product.id.toString());
   
   // Get selected size details
   const selectedSizeOption = PUDDING_TART_SIZE_OPTIONS.find(size => size.id === selectedSize);
@@ -374,6 +396,84 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
           <span className="font-bold text-base">{formatRupiah(basePrice)}</span>
         </div>
         
+        {/* Premium Free Vla Info */}
+        {includesFreeVla && (
+          <div className="mb-3 relative overflow-hidden rounded-xl bg-gradient-to-br from-[#fef7f0] via-[#fff8f5] to-[#ffe9ea] border-2 border-[#d4a574]/30 shadow-lg">
+            {/* Premium background pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,_rgba(180,138,120,0.1)_0%,_transparent_60%),_radial-gradient(circle_at_80%_50%,_rgba(212,165,116,0.1)_0%,_transparent_60%)]"></div>
+            
+            {/* Content */}
+            <div className="relative p-4">
+              <div className="flex items-start gap-3">
+                {/* Premium Icon */}
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#b48a78] to-[#d4a574] rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-white text-lg">🍼</span>
+                </div>
+                
+                {/* Text Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-bold text-[#8b5a3c] tracking-wide">GRATIS BONUS</span>
+                    <div className="w-8 h-0.5 bg-gradient-to-r from-[#b48a78] to-[#d4a574] rounded-full"></div>
+                  </div>
+                  <p className="text-xs text-[#b48a78] font-medium leading-relaxed">
+                    Dapatkan <span className="font-bold text-[#8b5a3c]">1 Botol Vla Premium (250ml)</span> gratis untuk setiap pudding
+                  </p>
+                </div>
+                
+                {/* Premium Badge */}
+                <div className="flex-shrink-0">
+                  <div className="bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                    FREE
+                  </div>
+                </div>
+              </div>
+              
+              {/* Bottom accent line */}
+              <div className="mt-3 h-0.5 bg-gradient-to-r from-transparent via-[#d4a574]/50 to-transparent rounded-full"></div>
+            </div>
+          </div>
+        )}
+        
+        {/* Premium Free Cup Vla Info */}
+        {includesFreeCupVla && (
+          <div className="mb-3 relative overflow-hidden rounded-xl bg-gradient-to-br from-[#fef7f0] via-[#fff8f5] to-[#ffe9ea] border-2 border-[#d4a574]/30 shadow-lg">
+            {/* Premium background pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,_rgba(180,138,120,0.1)_0%,_transparent_60%),_radial-gradient(circle_at_80%_50%,_rgba(212,165,116,0.1)_0%,_transparent_60%)]"></div>
+            
+            {/* Content */}
+            <div className="relative p-4">
+              <div className="flex items-start gap-3">
+                {/* Premium Icon */}
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#b48a78] to-[#d4a574] rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-white text-lg">🥤</span>
+                </div>
+                
+                {/* Text Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-bold text-[#8b5a3c] tracking-wide">GRATIS BONUS</span>
+                    <div className="w-8 h-0.5 bg-gradient-to-r from-[#b48a78] to-[#d4a574] rounded-full"></div>
+                  </div>
+                  <p className="text-xs text-[#b48a78] font-medium leading-relaxed">
+                    Dapatkan <span className="font-bold text-[#8b5a3c]">1 Cup Vla (120ml)</span> gratis untuk setiap paket
+                  </p>
+                </div>
+                
+                {/* Premium Badge */}
+                <div className="flex-shrink-0">
+                  <div className="bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                    FREE
+                  </div>
+                </div>
+              </div>
+              
+              {/* Bottom accent line */}
+              <div className="mt-3 h-0.5 bg-gradient-to-r from-transparent via-[#d4a574]/50 to-transparent rounded-full"></div>
+            </div>
+          </div>
+        )}
+        
         {/* Size Options for Pudding Tart */}
         {isPuddingTart && (
           <div className="mb-3">
@@ -547,15 +647,30 @@ export default function ProductDetailClient({ product, addOns }: ProductDetailCl
         </div>
       </div>
 
-      {/* Floating Add to Cart Button (mobile) - floating with more margin and up from edge */}
-      <div className="fixed bottom-6 left-0 w-full z-30 flex flex-col items-center pointer-events-none md:static md:p-0 md:border-0 md:bg-transparent">
+      {/* Premium Add to Cart Button */}
+      <div className="fixed bottom-6 left-0 w-full z-30 flex flex-col items-center pointer-events-none md:static md:p-0 md:border-0 md:bg-transparent md:mt-4">
         <Button
           ref={addBtnRef}
-          className="w-full max-w-sm mx-4 py-2 text-base rounded-full bg-[#f5e1d8] text-black font-bold hover:bg-[#e9cfc0] md:static pointer-events-auto shadow-lg"
+          className="w-full max-w-sm mx-4 py-4 text-base rounded-xl bg-gradient-to-r from-[#b48a78] to-[#d4a574] text-white font-bold hover:from-[#8b5a3c] hover:to-[#b48a78] md:static pointer-events-auto shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] md:py-3 md:text-lg"
           onClick={handleAddToCart}
           disabled={isAnimating}
         >
-          Add <span className="ml-2">{formatRupiah(totalPrice)}</span>
+          {isAnimating ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Adding...</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Add to Cart</span>
+              <span className="bg-white/20 px-3 py-1 rounded-lg font-bold">
+                {formatRupiah(totalPrice)}
+              </span>
+            </div>
+          )}
         </Button>
       </div>
     </div>
