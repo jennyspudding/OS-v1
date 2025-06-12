@@ -125,9 +125,20 @@ export default function RootLayout({
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         
-        {/* Resource hints for better performance */}
+        {/* Enhanced resource hints for category icons and images */}
         <link rel="preload" href="/logo.png" as="image" />
         <link rel="prefetch" href="/sample-product.jpg" as="image" />
+        
+        {/* Preconnect to Supabase for faster API calls */}
+        <link rel="preconnect" href="https://supabase.co" />
+        <link rel="dns-prefetch" href="https://supabase.co" />
+        
+        {/* Preload critical CSS for category icons */}
+        <link rel="preload" href="/icons/category-placeholder.svg" as="image" />
+        
+        {/* Resource hints for better image loading */}
+        <meta name="resource-hints" content="preload, prefetch, preconnect" />
+        <meta name="image-optimization" content="eager-loading, lazy-loading, priority-hints" />
         
         {/* Apple Splash Screens */}
         <link rel="apple-touch-startup-image" href="/icons/apple-splash-2048-2732.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />

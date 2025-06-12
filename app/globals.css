@@ -598,21 +598,31 @@ a {
     margin-top: 0px !important;
   }
   
-  /* Optimize category icon loading */
+  /* Enhanced category icon loading optimization */
   .category-icon-container {
     position: relative;
     overflow: hidden;
     border-radius: 16px;
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    contain: layout style paint;
+    contain: layout style paint size;
     transform: translateZ(0);
+    isolation: isolate;
+    /* Preload hint for better performance */
+    content-visibility: auto;
+    contain-intrinsic-size: 56px 56px;
   }
   
   .category-icon-container img {
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: opacity;
     backface-visibility: hidden;
     transform: translateZ(0);
+    /* Optimize image rendering */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    /* Prevent layout shifts */
+    aspect-ratio: 1;
+    object-fit: cover;
   }
   
   .category-icon-container img[data-loaded="true"] {
@@ -623,7 +633,7 @@ a {
     opacity: 0;
   }
   
-  /* GPU acceleration for category icons */
+  /* Enhanced GPU acceleration for category icons */
   .category-icon-container::before {
     content: '';
     position: absolute;
@@ -634,6 +644,23 @@ a {
     background: inherit;
     z-index: -1;
     transform: translateZ(0);
+    /* Optimize compositing */
+    will-change: transform;
+  }
+  
+  /* High priority category icons (first 3) */
+  .category-icon-container.priority {
+    /* Force immediate compositing layer */
+    transform: translate3d(0, 0, 0);
+    /* Optimize for fast loading */
+    contain: strict;
+  }
+  
+  .category-icon-container.priority img {
+    /* Immediate loading for priority icons */
+    transition: opacity 0.1s ease-out;
+    /* Better quality for priority icons */
+    image-rendering: auto;
   }
   
   @keyframes shimmer {

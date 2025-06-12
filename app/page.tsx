@@ -99,7 +99,7 @@ export default function Home() {
     }
   }, []);
 
-  // Load categories with loading state and preload images
+  // Load categories with optimized loading and aggressive preloading
   const loadCategories = useCallback(async () => {
     try {
       setIsLoadingCategories(true);
@@ -112,14 +112,41 @@ export default function Home() {
         setCategories(data as Category[]); // Cast to Category[]
         if (data.length > 0) setSelectedCategory(data[0].id);
         
-        // Preload category icons for better performance
-        data.forEach((category: Category) => {
-          if (category.icon_url) {
+        // Enhanced preloading strategy for category icons
+        const preloadPromises = data.map((category: Category, index: number) => {
+          if (!category.icon_url) return Promise.resolve();
+          
+          return new Promise<void>((resolve) => {
             const img = new window.Image();
-            img.src = category.icon_url;
-            // Prefetch with low priority
-            img.loading = 'lazy';
-          }
+            
+            // High priority for first 3 categories (visible on load)
+            const isHighPriority = index < 3;
+            
+            if (isHighPriority) {
+              img.loading = 'eager';
+              img.fetchPriority = 'high';
+            } else {
+              img.loading = 'lazy';
+              img.fetchPriority = 'low';
+            }
+            
+            img.crossOrigin = 'anonymous';
+            img.decoding = 'async';
+            
+            img.onload = () => resolve();
+            img.onerror = () => resolve(); // Don't fail the whole process
+            
+            // Start preloading
+            img.src = category.icon_url!;
+            
+            // Timeout to prevent hanging
+            setTimeout(() => resolve(), 2000);
+          });
+        });
+        
+        // Don't wait for all preloads to complete, but start them
+        Promise.allSettled(preloadPromises).then(() => {
+          console.log('Category icons preloading completed');
         });
       }
     } catch (error) {
@@ -689,7 +716,7 @@ export default function Home() {
               {isLoadingCategories ? (
                 <CategoryIconSkeleton count={6} />
               ) : (
-                categories.map((cat) => (
+                categories.map((cat, index) => (
                   <CategoryIcon
                     key={cat.id}
                     iconUrl={cat.icon_url}
@@ -697,6 +724,7 @@ export default function Home() {
                     isSelected={selectedCategory === cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
                     size="md"
+                    priority={index < 3} // High priority for first 3 visible categories
                   />
                 ))
               )}
