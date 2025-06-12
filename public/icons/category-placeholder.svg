@@ -1,0 +1,18 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#f3f4f6" stroke="#b48a78" stroke-width="2"/>
+  
+  <!-- Pudding icon -->
+  <path d="M20 35c0-6.627 5.373-12 12-12s12 5.373 12 12v8c0 2.209-1.791 4-4 4H24c-2.209 0-4-1.791-4-4v-8z" fill="#b48a78"/>
+  
+  <!-- Pudding highlight -->
+  <path d="M22 35c0-5.523 4.477-10 10-10s10 4.477 10 10v6c0 1.105-.895 2-2 2H24c-1.105 0-2-.895-2-2v-6z" fill="#d4a574"/>
+  
+  <!-- Pudding topping -->
+  <ellipse cx="32" cy="35" rx="10" ry="3" fill="#f8f9fa"/>
+  
+  <!-- Decorative elements -->
+  <circle cx="28" cy="37" r="1.5" fill="#b48a78"/>
+  <circle cx="36" cy="37" r="1.5" fill="#b48a78"/>
+  <circle cx="32" cy="40" r="1" fill="#b48a78"/>
+</svg> 

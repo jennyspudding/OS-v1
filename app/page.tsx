@@ -10,13 +10,14 @@ import ProductBadge from '@/components/ProductBadge';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 import CategoryIcon from '@/components/CategoryIcon';
 import CategoryIconSkeleton from '@/components/CategoryIconSkeleton';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 
 // Define the Category type including ranking
 interface Category {
-  id: string; // Assuming id is string (UUID) based on previous admin panel changes
+  id: string; // Always convert to string for consistency
   name: string;
   icon_url?: string;
-  ranking: number;
+  ranking?: number; // Make ranking optional in case it's not set
 }
 
 export default function Home() {
@@ -32,6 +33,9 @@ export default function Home() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addingToCart, setAddingToCart] = useState<{ [key: string]: boolean }>({});
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
   
   const itemsPerSlide = 3;
   const totalSlides = Math.ceil(heroBanners.length / itemsPerSlide);
@@ -41,7 +45,90 @@ export default function Home() {
   
   const { cart, addToCart } = useCart();
   const totalCartItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Function to scroll category icons to selected category
+  const scrollToSelectedCategory = (categoryId: string) => {
+    if (!categoryScrollRef.current) return;
+    
+    const categoryIndex = categories.findIndex(cat => String(cat.id) === categoryId);
+    if (categoryIndex === -1) return;
+    
+    const scrollContainer = categoryScrollRef.current;
+    const categoryElements = scrollContainer.querySelectorAll('.category-item');
+    
+    if (categoryElements[categoryIndex]) {
+      const categoryElement = categoryElements[categoryIndex] as HTMLElement;
+      const containerWidth = scrollContainer.clientWidth;
+      const elementLeft = categoryElement.offsetLeft;
+      const elementWidth = categoryElement.clientWidth;
+      
+      // Calculate scroll position to center the selected category
+      const scrollLeft = elementLeft - (containerWidth / 2) + (elementWidth / 2);
+      
+      scrollContainer.scrollTo({
+        left: Math.max(0, scrollLeft),
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Category navigation functions
+  const navigateToNextCategory = () => {
+    if (isTransitioning || categories.length === 0) return;
+    
+    const currentIndex = categories.findIndex(cat => String(cat.id) === selectedCategory);
+    const nextIndex = (currentIndex + 1) % categories.length;
+    
+    setIsTransitioning(true);
+    setSwipeDirection('left');
+    
+    setTimeout(() => {
+      setSelectedCategory(String(categories[nextIndex].id));
+      scrollToSelectedCategory(String(categories[nextIndex].id));
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setSwipeDirection(null);
+      }, 150);
+    }, 150);
+  };
+
+  const navigateToPreviousCategory = () => {
+    if (isTransitioning || categories.length === 0) return;
+    
+    const currentIndex = categories.findIndex(cat => String(cat.id) === selectedCategory);
+    const prevIndex = currentIndex === 0 ? categories.length - 1 : currentIndex - 1;
+    
+    setIsTransitioning(true);
+    setSwipeDirection('right');
+    
+    setTimeout(() => {
+      setSelectedCategory(String(categories[prevIndex].id));
+      scrollToSelectedCategory(String(categories[prevIndex].id));
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setSwipeDirection(null);
+      }, 150);
+    }, 150);
+  };
   
+  // Swipe gesture for category navigation
+  const { swipeHandlers, isSwipeActive } = useSwipeGesture({
+    onSwipeLeft: navigateToNextCategory,
+    onSwipeRight: navigateToPreviousCategory,
+    minSwipeDistance: 60,
+    maxSwipeTime: 400
+  });
+
+  // Auto-scroll to selected category when it changes
+  useEffect(() => {
+    if (selectedCategory && categories.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToSelectedCategory(selectedCategory);
+      }, 100);
+    }
+  }, [selectedCategory, categories]);
+
   // Loading states
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -103,51 +190,102 @@ export default function Home() {
   const loadCategories = useCallback(async () => {
     try {
       setIsLoadingCategories(true);
-      // Fetch 'id, name, icon_url, ranking' and order by 'ranking'
-      const { data, error } = await supabase
+      
+      // Load all category data at once to avoid timing issues
+      const { data: fullData, error: fullError } = await supabase
         .from('categories')
         .select('id, name, icon_url, ranking')
         .order('ranking', { ascending: true });
-      if (!error && data) {
-        setCategories(data as Category[]); // Cast to Category[]
-        if (data.length > 0) setSelectedCategory(data[0].id);
+      
+      if (fullError) {
+        console.error('❌ Error loading categories:', fullError);
+      } else if (!fullData || fullData.length === 0) {
+        console.warn('⚠️ No categories found in database');
+      } else {
+        console.log('📦 Loaded categories:', fullData.map(cat => ({ 
+          id: cat.id,
+          name: cat.name, 
+          hasIcon: !!cat.icon_url,
+          iconType: cat.icon_url?.startsWith('data:image/') ? 'admin-upload' : 'external-url',
+          iconPreview: cat.icon_url ? cat.icon_url.substring(0, 50) + '...' : 'No icon',
+          ranking: cat.ranking
+        })));
         
-        // Enhanced preloading strategy for category icons
-        const preloadPromises = data.map((category: Category, index: number) => {
-          if (!category.icon_url) return Promise.resolve();
-          
-          return new Promise<void>((resolve) => {
-            const img = new window.Image();
+        // Convert IDs to strings for consistency
+        const categoriesWithStringIds = fullData.map(cat => ({
+          ...cat,
+          id: String(cat.id)
+        }));
+        
+        setCategories(categoriesWithStringIds as Category[]);
+        
+        // Find "Pudding Loyang" category or default to first category
+        const puddingLoyangCategory = categoriesWithStringIds.find(cat => 
+          cat.name.toLowerCase().includes('pudding loyang') || 
+          cat.name.toLowerCase().includes('loyang')
+        );
+        
+        if (puddingLoyangCategory) {
+          setSelectedCategory(puddingLoyangCategory.id);
+        } else if (categoriesWithStringIds.length > 0) {
+          setSelectedCategory(categoriesWithStringIds[0].id);
+        }
+        
+        // Only proceed with preloading if we have the converted data
+        if (categoriesWithStringIds) {
+          // Enhanced preloading strategy for category icons - only for priority icons
+          const priorityPreloadPromises = categoriesWithStringIds.slice(0, 3).map((category: Category, index: number) => {
+            if (!category.icon_url) return Promise.resolve();
             
-            // High priority for first 3 categories (visible on load)
-            const isHighPriority = index < 3;
-            
-            if (isHighPriority) {
+            return new Promise<void>((resolve) => {
+              const img = new window.Image();
+              
               img.loading = 'eager';
               img.fetchPriority = 'high';
-            } else {
-              img.loading = 'lazy';
-              img.fetchPriority = 'low';
-            }
-            
-            img.crossOrigin = 'anonymous';
-            img.decoding = 'async';
-            
-            img.onload = () => resolve();
-            img.onerror = () => resolve(); // Don't fail the whole process
-            
-            // Start preloading
-            img.src = category.icon_url!;
-            
-            // Timeout to prevent hanging
-            setTimeout(() => resolve(), 2000);
+              img.crossOrigin = 'anonymous';
+              img.decoding = 'async';
+              
+              img.onload = () => resolve();
+              img.onerror = () => resolve(); // Don't fail the whole process
+              
+              // Start preloading
+              img.src = category.icon_url!;
+              
+              // Shorter timeout for priority icons
+              setTimeout(() => resolve(), 1000);
+            });
           });
-        });
-        
-        // Don't wait for all preloads to complete, but start them
-        Promise.allSettled(preloadPromises).then(() => {
-          console.log('Category icons preloading completed');
-        });
+          
+          // Preload priority icons immediately
+          Promise.allSettled(priorityPreloadPromises).then(() => {
+            console.log('Priority category icons preloaded');
+          });
+          
+          // Lazy preload remaining icons after a delay
+          setTimeout(() => {
+            const remainingPreloadPromises = categoriesWithStringIds.slice(3).map((category: Category) => {
+              if (!category.icon_url) return Promise.resolve();
+              
+              return new Promise<void>((resolve) => {
+                const img = new window.Image();
+                img.loading = 'lazy';
+                img.fetchPriority = 'low';
+                img.crossOrigin = 'anonymous';
+                img.decoding = 'async';
+                
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+                img.src = category.icon_url!;
+                
+                setTimeout(() => resolve(), 3000);
+              });
+            });
+            
+            Promise.allSettled(remainingPreloadPromises).then(() => {
+              console.log('All category icons preloaded');
+            });
+          }, 500); // Delay non-priority preloading
+        }
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -687,10 +825,13 @@ export default function Home() {
       {!isSearching && (
         <section className="relative py-0.5 md:py-1">
           <div className="max-w-7xl mx-auto px-3 md:px-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-1 pt-1 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0">
+            <div 
+              ref={categoryScrollRef}
+              className="flex gap-3 overflow-x-auto scrollbar-premium snap-x snap-mandatory pb-1 pt-1 md:justify-center md:flex-wrap md:gap-4 md:overflow-visible md:pb-0"
+            >
               
               {/* Express Store - First Category Item */}
-              <div className="flex flex-col items-center snap-start min-w-[72px] pt-2">
+              <div className="category-item flex flex-col items-center snap-start min-w-[72px] pt-2">
                 <Link 
                   href="/express-store"
                   className="relative group w-14 h-14 flex items-center justify-center md:w-16 md:h-16 mb-1"
@@ -721,8 +862,11 @@ export default function Home() {
                     key={cat.id}
                     iconUrl={cat.icon_url}
                     categoryName={cat.name}
-                    isSelected={selectedCategory === cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    isSelected={selectedCategory === String(cat.id)}
+                    onClick={() => {
+                      setSelectedCategory(String(cat.id));
+                      scrollToSelectedCategory(String(cat.id));
+                    }}
                     size="md"
                     priority={index < 3} // High priority for first 3 visible categories
                   />
@@ -734,13 +878,87 @@ export default function Home() {
       )}
       
       {/* Enhanced Product Grid */}
-      <section className="relative py-1 px-3 md:py-2 md:px-8 pb-24 md:pb-16">
+      <section 
+        className="relative py-1 px-3 md:py-2 md:px-8 pb-24 md:pb-16"
+        {...swipeHandlers}
+      >
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
           <div className="mb-2 text-center md:mb-4">
-            <h2 className="text-2xl font-bold text-display text-[#b48a78] mb-2 md:text-4xl font-display">
-              {isSearching ? `Hasil Pencarian` : (selectedCategoryObj?.name || "Semua Produk")}
-            </h2>
+            <div className="relative overflow-hidden">
+              <h2 className={`text-2xl font-bold text-display text-[#b48a78] mb-2 md:text-4xl font-display transition-all duration-300 ${
+                isTransitioning 
+                  ? swipeDirection === 'left' 
+                    ? 'transform -translate-x-full opacity-0' 
+                    : 'transform translate-x-full opacity-0'
+                  : 'transform translate-x-0 opacity-100'
+              }`}>
+                {isSearching ? `Hasil Pencarian` : (selectedCategoryObj?.name || "Semua Produk")}
+              </h2>
+              
+              {/* Navigation indicators */}
+              <div className="flex justify-center items-center mt-2 space-x-4">
+                {/* Desktop navigation arrows */}
+                <button
+                  onClick={navigateToPreviousCategory}
+                  className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-[#b48a78]/10 hover:bg-[#b48a78]/20 transition-all duration-200 hover:scale-110"
+                  disabled={isTransitioning}
+                >
+                  <svg className="w-4 h-4 text-[#b48a78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                                 {/* Mobile swipe indicator */}
+                 <div className="md:hidden flex items-center space-x-1">
+                   <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                     isTransitioning && swipeDirection === 'right' 
+                       ? 'bg-[#b48a78] scale-125' 
+                       : 'bg-[#b48a78]/30'
+                   }`} />
+                   <div className={`text-xs px-2 transition-colors duration-300 ${
+                     isTransitioning 
+                       ? 'text-[#b48a78] font-semibold' 
+                       : 'text-[#b48a78]/60'
+                   }`}>
+                     {isTransitioning ? 'Switching...' : 'Swipe untuk ganti kategori'}
+                   </div>
+                   <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                     isTransitioning && swipeDirection === 'left' 
+                       ? 'bg-[#b48a78] scale-125' 
+                       : 'bg-[#b48a78]/30'
+                   }`} />
+                 </div>
+
+                {/* Category position indicator */}
+                <div className="hidden md:flex items-center space-x-1">
+                  {categories.map((cat, index) => {
+                    const currentIndex = categories.findIndex(c => String(c.id) === selectedCategory);
+                    return (
+                      <div
+                        key={cat.id}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                          index === currentIndex 
+                            ? 'bg-[#b48a78] scale-125' 
+                            : 'bg-[#b48a78]/30 hover:bg-[#b48a78]/50'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Desktop navigation arrows */}
+                <button
+                  onClick={navigateToNextCategory}
+                  className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-[#b48a78]/10 hover:bg-[#b48a78]/20 transition-all duration-200 hover:scale-110"
+                  disabled={isTransitioning}
+                >
+                  <svg className="w-4 h-4 text-[#b48a78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
             {isSearching && (
               <p className="text-[#b48a78]/70 font-medium text-sm md:text-base">
                 {filteredProducts.length} produk ditemukan untuk "{search}"
@@ -753,7 +971,13 @@ export default function Home() {
           {isLoadingProducts ? (
             <ProductGridSkeleton count={8} />
           ) : (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-6">
+            <div className={`grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-6 transition-all duration-300 ${
+              isTransitioning 
+                ? swipeDirection === 'left' 
+                  ? 'transform -translate-x-4 opacity-70' 
+                  : 'transform translate-x-4 opacity-70'
+                : 'transform translate-x-0 opacity-100'
+            }`}>
               {filteredProducts.slice(0, visibleCount).length === 0 ? (
                 <div className="col-span-full text-center py-12 md:py-16">
                   <div className="w-20 h-20 mx-auto mb-4 bg-[#b48a78]/10 rounded-full flex items-center justify-center md:w-24 md:h-24">
@@ -776,7 +1000,7 @@ export default function Home() {
                     className="group block touch-manipulation"
                     prefetch={false}
                   >
-                    <div className="bg-white rounded-2xl md:rounded-3xl overflow-hidden border-2 border-transparent shadow-lg hover:shadow-xl transition-all duration-300 relative md:hover:scale-[1.02] md:hover:-translate-y-1 active:scale-95 md:active:scale-100">
+                    <div className="bg-white rounded-2xl md:rounded-3xl overflow-hidden border-2 border-transparent shadow-lg hover:shadow-xl transition-all duration-300 relative md:hover:scale-[1.02] md:hover:-translate-y-1 active:scale-95 md:active:scale-100 flex flex-col h-full">
                       {/* Premium Border Effect */}
                       <div className="absolute inset-0 bg-gradient-to-br from-[#b48a78]/20 via-transparent to-[#d4a574]/20 rounded-2xl md:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                       
@@ -821,15 +1045,15 @@ export default function Home() {
                       </div>
                       
                       {/* Premium Content Area */}
-                      <div className="p-3 md:p-5 relative">
+                      <div className="p-3 md:p-5 relative flex flex-col flex-1">
                         {/* Premium Bottom Border */}
                         <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-0.5 bg-gradient-to-r from-[#b48a78] to-[#d4a574] rounded-full opacity-60 group-hover:opacity-100 group-hover:w-16 transition-all duration-300" />
                         
-                        <h3 className="font-bold text-[#b48a78] mb-2 line-clamp-2 font-brand text-xs leading-tight md:text-base md:leading-normal group-hover:text-[#8b6f47] transition-colors">
+                        <h3 className="font-bold text-[#b48a78] mb-2 line-clamp-2 font-brand text-xs leading-tight md:text-base md:leading-normal group-hover:text-[#8b6f47] transition-colors min-h-[2.5rem] md:min-h-[3rem]">
                           {product.name}
                         </h3>
                         
-                        <div className="flex items-center justify-between mb-2 md:mb-3">
+                        <div className="flex items-center justify-between mb-2 md:mb-3 mt-auto">
                           <p className="text-base font-bold text-[#b48a78] md:text-xl">
                             Rp {product.price?.toLocaleString('id-ID')}
                           </p>

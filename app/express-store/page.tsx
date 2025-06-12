@@ -179,33 +179,46 @@ export default function ExpressStorePage() {
       </header>
 
       {/* Express Store Info Banner */}
-      <section className="relative py-6 md:py-8">
+      <section className="relative py-3 md:py-12">
         <div className="absolute inset-0 bg-gradient-to-r from-[#b48a78]/10 via-transparent to-[#d4a574]/10" />
         <div className="relative max-w-7xl mx-auto px-4 md:px-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-6 md:p-8 border border-white/30">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl md:rounded-3xl shadow-lg md:shadow-2xl p-4 md:p-12 border border-white/30">
             <div className="text-center">
-              <div className="flex justify-center items-center gap-3 mb-4">
-                <span className="text-4xl">🚀</span>
-                <h2 className="text-3xl font-bold text-[#b48a78] font-display md:text-4xl">Premium Artisanal Desserts</h2>
-                <span className="text-4xl animate-pulse text-[#b48a78]">⚡</span>
+              <div className="flex justify-center items-center gap-2 md:gap-4 mb-2 md:mb-6">
+                <span className="text-2xl md:text-5xl">🚀</span>
+                <h2 className="text-xl font-bold text-[#b48a78] font-display md:text-5xl">Express Store</h2>
+                <span className="text-2xl md:text-5xl animate-pulse text-[#b48a78]">⚡</span>
               </div>
-              <p className="text-gray-700 text-lg mb-4 md:text-xl">
+              <p className="text-gray-700 text-sm mb-3 md:text-2xl md:mb-6">
                 Pudding siap kirim <span className="font-bold text-[#b48a78]">hari ini juga!</span>
               </p>
-              <div className="flex flex-wrap justify-center gap-4 text-sm md:text-base">
-                <div className="flex items-center gap-2 bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-100 px-4 py-2 rounded-full border border-amber-300/50 shadow-lg">
+              <div className="flex flex-wrap justify-center gap-2 md:gap-6 text-xs md:text-lg">
+                <div className="flex items-center gap-1 md:gap-3 bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-100 px-3 py-1 md:px-6 md:py-3 rounded-full border border-amber-300/50 md:shadow-xl">
                   <span className="text-amber-600">✓</span>
                   <span className="text-amber-700 font-medium bg-gradient-to-r from-amber-700 to-yellow-600 bg-clip-text text-transparent">Stok Tersedia</span>
                 </div>
-                <div className="flex items-center gap-2 bg-gradient-to-r from-slate-100 via-gray-50 to-slate-100 px-4 py-2 rounded-full border border-slate-300/50 shadow-lg">
+                <div className="flex items-center gap-1 md:gap-3 bg-gradient-to-r from-slate-100 via-gray-50 to-slate-100 px-3 py-1 md:px-6 md:py-3 rounded-full border border-slate-300/50 md:shadow-xl">
                   <span className="text-slate-600">🕐</span>
                   <span className="text-slate-700 font-medium bg-gradient-to-r from-slate-700 to-gray-600 bg-clip-text text-transparent">Same-Day Delivery</span>
                 </div>
-                <div className="flex items-center gap-2 bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-100 px-4 py-2 rounded-full border border-amber-300/50 shadow-lg">
+                <div className="flex items-center gap-1 md:gap-3 bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-100 px-3 py-1 md:px-6 md:py-3 rounded-full border border-amber-300/50 md:shadow-xl">
                   <span className="text-amber-600">📦</span>
                   <span className="text-amber-700 font-medium bg-gradient-to-r from-amber-700 to-yellow-600 bg-clip-text text-transparent">Siap Kirim</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Storewide Discount Banner */}
+      <section className="relative py-2 md:py-4 px-4 md:px-6 md:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-gradient-to-r from-[#b48a78] to-[#d4a574] rounded-lg md:rounded-2xl shadow-sm md:shadow-lg p-3 md:p-6 text-white relative overflow-hidden">
+            <div className="relative text-center">
+              <p className="text-sm md:text-lg font-medium">
+                Diskon 10% untuk pembelian min. Rp 175.000 • Otomatis diterapkan
+              </p>
             </div>
           </div>
         </div>

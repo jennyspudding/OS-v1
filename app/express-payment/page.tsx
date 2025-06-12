@@ -67,6 +67,13 @@ function ExpressPaymentContent() {
     item.isExpress === true || item.source === 'express'
   ) || [];
 
+  // Storewide discount logic
+  const DISCOUNT_MINIMUM = 175000; // Minimum purchase 175k
+  const DISCOUNT_PERCENTAGE = 10; // 10% discount
+  
+  const isDiscountEligible = order?.cartTotal >= DISCOUNT_MINIMUM;
+  const discountAmount = isDiscountEligible ? Math.floor(order?.cartTotal * (DISCOUNT_PERCENTAGE / 100)) : 0;
+
   useEffect(() => {
     // Generate express order ID
     setOrderId(generateExpressOrderId());
@@ -169,7 +176,9 @@ function ExpressPaymentContent() {
         ...orderData, 
         uuid: orderUuid, 
         paymentProofUrl,
-        grandTotal: orderData.cartTotal - (orderData.discount || 0) + (orderData.deliveryTotal || 0)
+        grandTotal: (orderData.cartTotal - discountAmount) - (orderData.discount || 0) + (orderData.deliveryTotal || 0),
+        storediscountAmount: discountAmount,
+        isDiscountEligible: isDiscountEligible
       };
       localStorage.setItem('completeExpressOrderData', JSON.stringify(finalOrderData));
       
@@ -349,6 +358,12 @@ function ExpressPaymentContent() {
               <span>Subtotal Express</span>
               <span>{formatRupiah(order.cartTotal)}</span>
             </div>
+            {isDiscountEligible && (
+              <div className="flex justify-between text-base">
+                <span>Diskon Storewide (10%)</span>
+                <span className="text-green-600">- {formatRupiah(discountAmount)}</span>
+              </div>
+            )}
             {order.deliveryQuotation && (
               <div className="flex justify-between text-base">
                 <span>Ongkir Express</span>
@@ -358,12 +373,12 @@ function ExpressPaymentContent() {
             {order.promoCode && (
               <div className="flex justify-between text-base">
                 <span>Diskon ({order.promoCode})</span>
-                <span className="text-black">- {formatRupiah(order.discount)}</span>
+                <span className="text-green-600">- {formatRupiah(order.discount)}</span>
               </div>
             )}
             <div className="flex justify-between items-center font-bold text-lg border-t pt-2">
               <span>Total Express</span>
-              <span className="text-[#b48a78]">{formatRupiah(order.cartTotal - (order.discount || 0) + (order.deliveryTotal || 0))}</span>
+              <span className="text-[#b48a78]">{formatRupiah((order.cartTotal - discountAmount) - (order.discount || 0) + (order.deliveryTotal || 0))}</span>
             </div>
           </div>
         </div>
@@ -410,13 +425,13 @@ function ExpressPaymentContent() {
               <div className="flex justify-between items-center">
                 <div>
                   <div className="text-xs text-gray-600">Jumlah Transfer Express:</div>
-                  <div className="font-bold text-base text-[#8b5a3c]">{formatRupiah(order.grandTotal)}</div>
+                  <div className="font-bold text-base text-[#8b5a3c]">{formatRupiah((order.cartTotal - discountAmount) - (order.discount || 0) + (order.deliveryTotal || 0))}</div>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => copyToClipboard(order.grandTotal.toString(), 'Jumlah transfer express berhasil disalin!')}
+                  onClick={() => copyToClipboard(((order.cartTotal - discountAmount) - (order.discount || 0) + (order.deliveryTotal || 0)).toString(), 'Jumlah transfer express berhasil disalin!')}
                   className="px-2 py-1 text-xs h-6"
                 >
                   Copy

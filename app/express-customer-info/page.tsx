@@ -114,6 +114,14 @@ function ExpressCustomerInfoContent() {
     return sum + itemTotal + addOnsTotal;
   }, 0);
 
+  // Storewide discount logic
+  const DISCOUNT_MINIMUM = 175000; // Minimum purchase 175k
+  const DISCOUNT_PERCENTAGE = 10; // 10% discount
+  
+  const isDiscountEligible = cartTotal >= DISCOUNT_MINIMUM;
+  const discountAmount = isDiscountEligible ? Math.floor(cartTotal * (DISCOUNT_PERCENTAGE / 100)) : 0;
+  const discountedCartTotal = cartTotal - discountAmount;
+
   // Redirect if no express items
   useEffect(() => {
     if (expressItems.length === 0) {
@@ -1724,6 +1732,25 @@ function ExpressCustomerInfoContent() {
           </div>
         )}
 
+        {/* Storewide Discount Banner */}
+        <div className="px-3 sm:px-4 md:px-6 pb-4">
+          {!isDiscountEligible && cartTotal > 0 && (
+            <div className="bg-[#b48a78]/5 border border-[#b48a78]/20 rounded-lg p-3 mb-4">
+              <p className="text-sm text-[#8b6f47]">
+                Tambah <span className="font-semibold">Rp {(DISCOUNT_MINIMUM - cartTotal).toLocaleString('id-ID')}</span> untuk diskon 10%
+              </p>
+            </div>
+          )}
+
+          {isDiscountEligible && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-green-700">
+                Diskon 10% diterapkan • Hemat <span className="font-semibold">Rp {discountAmount.toLocaleString('id-ID')}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Promo Code Section */}
         <div className="px-3 sm:px-4 md:px-6 pb-4">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
@@ -1782,6 +1809,14 @@ function ExpressCustomerInfoContent() {
                 <span className="text-gray-900 font-medium">Rp{cartTotal.toLocaleString('id-ID')}</span>
               </div>
               
+              {/* Storewide Discount */}
+              {isDiscountEligible && (
+                <div className="flex justify-between">
+                  <span>Diskon Storewide (10%):</span>
+                  <span className="text-green-600 font-medium">-Rp{discountAmount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              
               {/* Delivery Cost */}
               {deliveryQuotation && (
                 <div className="flex justify-between">
@@ -1790,7 +1825,7 @@ function ExpressCustomerInfoContent() {
                 </div>
               )}
               
-              {/* Discount */}
+              {/* Promo Code Discount */}
               {cart.promoCode && cart.discount && (
                 <div className="flex justify-between">
                   <span>Diskon ({cart.promoCode}):</span>
@@ -1803,7 +1838,7 @@ function ExpressCustomerInfoContent() {
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Pembayaran:</span>
                   <span className="text-[#d63384]">
-                    Rp{(cartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
+                    Rp{(discountedCartTotal - (cart.discount || 0) + (deliveryQuotation && !hasExceededDistanceLimit ? parseInt(deliveryQuotation.price.total) : 0)).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>

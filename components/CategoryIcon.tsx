@@ -23,6 +23,17 @@ export default function CategoryIcon({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  // Debug logging - re-enabled to diagnose issue
+  useEffect(() => {
+    console.log(`CategoryIcon for "${categoryName}":`, {
+      iconUrl: iconUrl ? `${iconUrl.substring(0, 50)}...` : 'No iconUrl',
+      isBase64: iconUrl?.startsWith('data:image/'),
+      priority,
+      imageLoaded,
+      imageError
+    });
+  }, [iconUrl, categoryName, priority, imageLoaded, imageError]);
+
   // Memoize size configurations to prevent re-calculations
   const sizeConfig = useMemo(() => ({
     classes: {
@@ -37,88 +48,50 @@ export default function CategoryIcon({
     }
   }), []);
 
-  // Enhanced loading optimization
+  // Reset loading states when iconUrl changes
   useEffect(() => {
-    if (!iconUrl || imageError || imageLoaded) return;
+    setImageLoaded(false);
+    setImageError(false);
+  }, [iconUrl]);
 
-    // Base64 data URLs load instantly
-    if (iconUrl.startsWith('data:image/')) {
-      setImageLoaded(true);
-      return;
-    }
-    
-    // For external URLs, use more aggressive preloading
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous'; // Enable CORS for better caching
-    img.decoding = 'async'; // Async decoding for better performance
-    img.loading = priority ? 'eager' : 'lazy';
-    
-    img.onload = () => {
-      setImageLoaded(true);
-    };
-    
-    img.onerror = () => {
-      setImageError(true);
-      setImageLoaded(true);
-    };
-    
-    // Start loading immediately
-    img.src = iconUrl;
-    
-    // Cleanup function
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [iconUrl, imageError, imageLoaded, priority]);
-
-  // Determine loading strategy based on icon type and priority
-  const loadingStrategy = useMemo(() => {
-    if (!iconUrl) return null;
-    
-    const isBase64 = iconUrl.startsWith('data:image/');
-    return {
-      loading: (isBase64 || priority) ? "eager" : "lazy",
-      quality: isBase64 ? 100 : 75,
-      unoptimized: isBase64,
-      priority: priority || isBase64
-    };
-  }, [iconUrl, priority]);
+  // Determine if we should use Next.js Image optimization
+  const shouldUseNextImage = iconUrl && !iconUrl.startsWith('data:image/');
 
   return (
-    <div className="flex flex-col items-center snap-start min-w-[72px] pt-2">
+    <div className="flex flex-col items-center snap-start min-w-[72px] pt-2 category-item">
       <button
         onClick={onClick}
-        className={`relative group ${sizeConfig.classes[size]} flex items-center justify-center mb-1 transition-all duration-200 ${
-          isSelected ? 'scale-110' : 'hover:scale-105'
+        className={`relative group ${sizeConfig.classes[size]} flex items-center justify-center mb-1 transition-all duration-300 ${
+          isSelected ? 'scale-110 transform' : 'hover:scale-105'
         }`}
       >
-        {iconUrl && !imageError && loadingStrategy ? (
-          <div className={`category-icon-container ${sizeConfig.classes[size]} ${priority ? 'priority' : ''}`}>
-            <Image 
+        {iconUrl && !imageError ? (
+          <div className={`${sizeConfig.classes[size]}`}>
+            {/* Loading skeleton - temporarily disabled */}
+            {false && !imageLoaded && (
+              <div className={`absolute inset-0 bg-[#b48a78]/10 rounded-2xl animate-pulse flex items-center justify-center z-10`}>
+                <span className="text-sm text-[#b48a78]/50">📷</span>
+              </div>
+            )}
+            
+            {/* Ultra-simplified image rendering - just show the damn image */}
+            <img 
               src={iconUrl} 
               alt={categoryName} 
-              width={sizeConfig.dimensions[size].width} 
-              height={sizeConfig.dimensions[size].height}
-              className={`rounded-2xl object-cover ${sizeConfig.classes[size]} ${
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              } transition-opacity duration-200`}
-              loading={loadingStrategy.loading as "eager" | "lazy"}
-              quality={loadingStrategy.quality}
-              priority={loadingStrategy.priority}
-              placeholder="blur"
-              blurDataURL="data:image/webp;base64,UklGRhwAAABXRUJQVlA4TBAAAAAvoAAAAEYoAABE///+A0A="
-              onLoad={() => setImageLoaded(true)}
-              onError={() => {
-                setImageError(true);
+              className={`rounded-2xl object-cover ${sizeConfig.classes[size]}`}
+              onLoad={() => {
                 setImageLoaded(true);
+                console.log(`✅ Image loaded for ${categoryName}`);
               }}
-              sizes="(max-width: 768px) 56px, 64px"
-              unoptimized={loadingStrategy.unoptimized}
+              onError={(e) => {
+                setImageError(true);
+                console.error(`❌ Failed to load image for ${categoryName}:`, e);
+              }}
             />
           </div>
         ) : (
-          <div className={`${sizeConfig.classes[size]} bg-[#b48a78]/10 rounded-2xl flex items-center justify-center`}>
+          // Fallback icon with better styling
+          <div className={`${sizeConfig.classes[size]} bg-gradient-to-br from-[#b48a78]/10 to-[#d4a574]/10 rounded-2xl flex items-center justify-center border-2 border-dashed border-[#b48a78]/20`}>
             <span className="text-xl md:text-2xl">🍮</span>
           </div>
         )}
@@ -136,4 +109,4 @@ export default function CategoryIcon({
       </span>
     </div>
   );
-} 
+}

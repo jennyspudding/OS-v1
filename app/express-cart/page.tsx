@@ -17,6 +17,15 @@ export default function ExpressCartPage() {
   const expressTotal = expressItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalExpressItems = expressItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Storewide discount logic
+  const DISCOUNT_MINIMUM = 175000; // Minimum purchase 175k
+  const DISCOUNT_PERCENTAGE = 10; // 10% discount
+  
+  const isDiscountEligible = expressTotal >= DISCOUNT_MINIMUM;
+  const discountAmount = isDiscountEligible ? Math.floor(expressTotal * (DISCOUNT_PERCENTAGE / 100)) : 0;
+  const finalTotal = expressTotal - discountAmount;
+  const remainingForDiscount = DISCOUNT_MINIMUM - expressTotal;
+
   return (
     <div className="min-h-screen relative">
       {/* Header */}
@@ -235,12 +244,38 @@ export default function ExpressCartPage() {
                 </p>
               </div>
               
+              {/* Discount Banner */}
+              {!isDiscountEligible && remainingForDiscount > 0 && (
+                <div className="bg-[#b48a78]/5 border border-[#b48a78]/20 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-[#8b6f47]">
+                    Tambah <span className="font-semibold">Rp {remainingForDiscount.toLocaleString('id-ID')}</span> untuk diskon 10%
+                  </p>
+                </div>
+              )}
+
+              {/* Discount Applied Banner */}
+              {isDiscountEligible && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-green-700">
+                    Diskon 10% diterapkan • Hemat <span className="font-semibold">Rp {discountAmount.toLocaleString('id-ID')}</span>
+                  </p>
+                </div>
+              )}
+
               {/* Cost Breakdown */}
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Subtotal ({totalExpressItems} item)</span>
                   <span className="font-medium">Rp {expressTotal.toLocaleString('id-ID')}</span>
                 </div>
+                
+                {/* Discount Line */}
+                {isDiscountEligible && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-600">Diskon Storewide (10%)</span>
+                    <span className="font-medium text-green-600">-Rp {discountAmount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
                 
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Biaya Express</span>
@@ -250,7 +285,7 @@ export default function ExpressCartPage() {
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between items-center text-xl font-bold text-[#b48a78]">
                     <span>Total Sementara:</span>
-                    <span>Rp {expressTotal.toLocaleString('id-ID')}</span>
+                    <span>Rp {finalTotal.toLocaleString('id-ID')}</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">*Belum termasuk ongkos kirim express</p>
                 </div>

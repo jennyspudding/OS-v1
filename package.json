@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node scripts/seed.js",
-    "upload-images": "node scripts/upload-images.js"
+    "upload-images": "node scripts/upload-images.js",
+    "test:performance": "node scripts/test-icon-performance.js",
+    "test:icons": "npm run test:performance"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.8",
@@ -38,6 +40,7 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
+    "puppeteer": "^23.0.0",
     "pwa-asset-generator": "^8.0.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
