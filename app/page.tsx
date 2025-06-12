@@ -30,6 +30,7 @@ export default function Home() {
   const isSearching = search.trim().length > 0;
   const selectedCategoryObj = categories.find(c => c.id === selectedCategory);
   const [heroBanners, setHeroBanners] = useState<{ id: number; text: string; image: string }[]>([]);
+  const [heroBannerVisible, setHeroBannerVisible] = useState<boolean>(true);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addingToCart, setAddingToCart] = useState<{ [key: string]: boolean }>({});
@@ -299,7 +300,31 @@ export default function Home() {
     try {
       setIsLoadingBanners(true);
       
-      // First try to get banners from database
+      // First check if hero banner is visible via API
+      let isVisible = true; // Default to visible
+      try {
+        // Use admin app URL - in development: localhost:3001, in production: use env variable
+        const adminApiUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:3001';
+        const settingsResponse = await fetch(`${adminApiUrl}/api/hero-banner-settings`);
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          isVisible = settingsData.is_visible;
+          console.log('🎛️ Hero banner visibility setting:', isVisible);
+        }
+      } catch (error) {
+        console.error('Error fetching hero banner settings:', error);
+        // Keep default value of true
+      }
+      
+      setHeroBannerVisible(isVisible);
+      
+      // Only load banners if hero banner is visible
+      if (!isVisible) {
+        setHeroBanners([]);
+        return;
+      }
+      
+      // Try to get banners from database
       const { data: bannerData, error: bannerError } = await supabase
         .from('hero-banner')
         .select('*')
@@ -692,7 +717,7 @@ export default function Home() {
       </div>
       
       {/* Enhanced Hero Banner */}
-      {!isSearching && (
+      {!isSearching && heroBannerVisible && (
         <section className="relative w-full py-1 md:py-2">
           <div className="absolute inset-0 bg-gradient-to-r from-[#ffe9ea]/50 via-transparent to-[#fef3f3]/50" />
           <div className="relative max-w-7xl mx-auto px-3 md:px-8">
