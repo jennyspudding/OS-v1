@@ -300,16 +300,40 @@ export default function Home() {
     try {
       setIsLoadingBanners(true);
       
-      // First check if hero banner is visible via API
+      // First check if hero banner is visible via Supabase function
       let isVisible = true; // Default to visible
       try {
-        // Use admin app URL - in development: localhost:3001, in production: use env variable
-        const adminApiUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:3001';
-        const settingsResponse = await fetch(`${adminApiUrl}/api/hero-banner-settings`);
-        if (settingsResponse.ok) {
-          const settingsData = await settingsResponse.json();
-          isVisible = settingsData.is_visible;
-          console.log('🎛️ Hero banner visibility setting:', isVisible);
+        // Try to use the Supabase function first
+        const { data: visibilityData, error: visibilityError } = await supabase.rpc('get_hero_banner_visibility');
+        
+        if (!visibilityError && visibilityData !== null) {
+          isVisible = visibilityData;
+          console.log('🎛️ Hero banner visibility setting (from Supabase):', isVisible);
+        } else {
+          // Fallback: try to read from hero_banner_settings table directly
+          const { data: settingsData, error: settingsError } = await supabase
+            .from('hero_banner_settings')
+            .select('is_visible')
+            .order('updated_at', { ascending: false })
+            .limit(1);
+          
+          if (!settingsError && settingsData && settingsData.length > 0) {
+            isVisible = settingsData[0].is_visible;
+            console.log('🎛️ Hero banner visibility setting (from table):', isVisible);
+          } else {
+            // Final fallback: try admin API
+            try {
+              const adminApiUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:3001';
+              const settingsResponse = await fetch(`${adminApiUrl}/api/hero-banner-settings`);
+              if (settingsResponse.ok) {
+                const apiSettingsData = await settingsResponse.json();
+                isVisible = apiSettingsData.is_visible;
+                console.log('🎛️ Hero banner visibility setting (from admin API):', isVisible);
+              }
+            } catch (apiError) {
+              console.error('Error fetching hero banner settings from admin API:', apiError);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching hero banner settings:', error);

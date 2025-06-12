@@ -199,6 +199,18 @@ export default function ExpressThankYouPage() {
                 </span>
                 <span className="font-medium">Rp{orderData.cartTotal?.toLocaleString('id-ID')}</span>
               </div>
+              
+              {/* Storewide Discount Display */}
+              {orderData.storediscountAmount && orderData.storediscountAmount > 0 && (
+                <div className="flex justify-between bg-green-50 px-3 py-2 rounded-lg">
+                  <span className="text-gray-600 flex items-center gap-1">
+                    <span className="text-green-600">💰</span>
+                    Diskon Storewide (10%):
+                  </span>
+                  <span className="text-green-600 font-medium">-Rp{orderData.storediscountAmount?.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between bg-gradient-to-r from-[#b48a78]/5 to-[#d4a574]/5 px-3 py-2 rounded-lg">
                 <span className="text-gray-600 flex items-center gap-1">
                   <span className="text-[#b48a78]">🚀</span>
@@ -218,7 +230,7 @@ export default function ExpressThankYouPage() {
                     <span>⚡</span>
                     Total Express:
                   </span>
-                  <span>Rp{(orderData.cartTotal - (orderData.discount || 0) + (orderData.deliveryTotal || 0)).toLocaleString('id-ID')}</span>
+                  <span>Rp{(orderData.cartTotal - (orderData.storediscountAmount || 0) - (orderData.discount || 0) + (orderData.deliveryTotal || 0)).toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>
