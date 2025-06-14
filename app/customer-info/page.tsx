@@ -889,11 +889,11 @@ function CustomerInfoContent() {
       };
     }
     
-    // Check if selecting tomorrow but it's after 12:00 today (should be H+2)
-    if (selectedDateOnly.getTime() === tomorrowOnly.getTime() && currentHour >= 12) {
+    // Check if selecting tomorrow but it's after 14:00 today (should be H+2)
+    if (selectedDateOnly.getTime() === tomorrowOnly.getTime() && currentHour >= 14) {
       return {
         valid: false,
-        warning: '⚠️ Pesanan setelah jam 12:00 hanya tersedia untuk pengiriman H+2. Silakan pilih tanggal lain.'
+        warning: '⚠️ Pesanan setelah jam 14:00 hanya tersedia untuk pengiriman H+2. Silakan pilih tanggal lain.'
       };
     }
     
@@ -1377,7 +1377,7 @@ function CustomerInfoContent() {
                   </div>
                 </div>
                 
-                <p className="text-xs text-gray-500 mt-1">Pengiriman tersedia besok (H+1) jam 11:00 - 16:00 WIB untuk order sebelum jam 12.00 hari ini</p>
+                <p className="text-xs text-gray-500 mt-1">Pengiriman tersedia besok (H+1) jam 11:00 - 16:00 WIB untuk order sebelum jam 14.00 hari ini</p>
                 
                 {/* Validation Warning */}
                 {deliveryTimeWarning && (
@@ -1798,15 +1798,15 @@ function CustomerInfoContent() {
                   <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <div className="font-medium text-gray-900">Batas Waktu Pemesanan</div>
-                    <div className="text-sm text-gray-600">Pesanan untuk pengiriman H+1 maksimal dibuat jam 12:00</div>
+                    <div className="text-sm text-gray-600">Pesanan untuk pengiriman H+1 maksimal dibuat jam 14:00</div>
                   </div>
                 </div>
 
                 <div className="flex items-start">
                   <div className="w-2 h-2 bg-[#d63384] rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
-                    <div className="font-medium text-gray-900">Setelah Jam 12:00</div>
-                    <div className="text-sm text-gray-600">Pesanan setelah jam 12:00 hanya tersedia untuk pengiriman H+2</div>
+                    <div className="font-medium text-gray-900">Setelah Jam 14:00</div>
+                    <div className="text-sm text-gray-600">Pesanan setelah jam 14:00 hanya tersedia untuk pengiriman H+2</div>
                   </div>
                 </div>
 
