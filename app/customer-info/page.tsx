@@ -1004,12 +1004,18 @@ function CustomerInfoContent() {
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
     
+    // Normalize today and tomorrow to compare only date parts (not time)
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const tomorrowDateOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+    
     for (let i = 0; i < 42; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       
       const isCurrentMonth = date.getMonth() === month;
-      const isPast = date < tomorrow;
+      // Compare only date parts, not time - dates before tomorrow are past
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const isPast = dateOnly < tomorrowDateOnly;
       const isToday = date.toDateString() === today.toDateString();
       
       // Fix timezone issue by using local date formatting instead of ISO string
