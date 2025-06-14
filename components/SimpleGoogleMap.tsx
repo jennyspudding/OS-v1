@@ -460,37 +460,26 @@ export default function SimpleGoogleMap({
   };
 
   return (
-    <div className="relative" style={{ height }}>
-      {/* Map Container - Always present in DOM */}
-      <div ref={mapRef} className="w-full h-full rounded-lg" />
-
-      {/* Loading Overlay */}
+    <div className="relative w-full" style={{ height }}>
+      {/* Loading State */}
       {isLoading && (
-        <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center z-20">
-          <div className="flex flex-col items-center text-center p-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-500 mb-2"></div>
-            <span className="text-gray-600 mb-2">Memuat Google Maps...</span>
-            <div className="text-xs text-gray-500">
-              Mohon tunggu, sedang memuat peta...
-            </div>
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#d63384] mx-auto mb-2"></div>
+            <div className="text-sm text-gray-600">Memuat peta...</div>
           </div>
         </div>
       )}
 
-      {/* Error Overlay */}
+      {/* Error State */}
       {error && (
-        <div className="absolute inset-0 bg-red-50 rounded-lg border-2 border-red-200 flex items-center justify-center z-20">
+        <div className="absolute inset-0 bg-red-50 flex items-center justify-center z-20">
           <div className="text-center p-4">
-            <div className="text-4xl mb-3">⚠️</div>
-            <div className="text-red-700 font-medium mb-2">Gagal Memuat Peta</div>
-            <div className="text-sm text-red-600 mb-4">{error}</div>
-            <button
-              onClick={() => {
-                setError(null);
-                setIsLoading(true);
-                loadGoogleMaps();
-              }}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            <div className="text-red-500 mb-2">⚠️</div>
+            <div className="text-sm text-red-600">{error}</div>
+            <button 
+              onClick={loadGoogleMaps}
+              className="mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors"
             >
               Coba Lagi
             </button>
@@ -498,65 +487,78 @@ export default function SimpleGoogleMap({
         </div>
       )}
 
-      {/* Search Bar and Controls - Only show when map is ready */}
+      {/* Map Container */}
+      <div ref={mapRef} className="w-full h-full rounded-lg" />
+
+      {/* Enhanced Map Controls Overlay */}
       {!isLoading && !error && (
-        <div className="absolute top-3 left-3 right-3 z-10 flex gap-2">
-          <div className="flex-1 flex bg-white rounded-lg shadow-md overflow-hidden">
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Cari alamat lengkap Anda..."
-              className="flex-1 px-3 py-2 text-sm focus:outline-none bg-white text-gray-900"
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              autoComplete="off"
-              spellCheck="false"
-              autoCorrect="off"
-              autoCapitalize="off"
-              onFocus={(e) => {
-                // Prevent mobile zoom on input focus
-                e.target.style.fontSize = '16px';
-              }}
-              onBlur={(e) => {
-                // Reset font size after blur
-                e.target.style.fontSize = '';
-              }}
-              style={{ fontSize: '16px' }}
-            />
+        <div className="absolute top-3 left-3 right-3 z-10 pointer-events-none">
+          <div className="flex justify-between items-start">
+            {/* Instructions Card */}
+            <div className="bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200 max-w-xs pointer-events-auto">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 bg-[#d63384] rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium text-gray-800">Cara Menggunakan</span>
+              </div>
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>• Klik di peta untuk pin lokasi</div>
+                <div>• Seret pin merah untuk pindah</div>
+                <div>• Zoom in/out untuk detail</div>
+              </div>
+            </div>
+
+            {/* Current Location Button */}
             <button
-              onClick={handleSearch}
-              className="px-3 py-2 bg-pink-500 text-white hover:bg-pink-600 transition-colors"
+              onClick={getCurrentLocation}
+              disabled={isGettingLocation}
+              className="bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200 hover:bg-white transition-colors pointer-events-auto disabled:opacity-50"
+              title="Gunakan lokasi saya"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              {isGettingLocation ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#d63384]"></div>
+              ) : (
+                <svg className="w-5 h-5 text-[#d63384]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
             </button>
           </div>
-          
-          <button
-            onClick={getCurrentLocation}
-            disabled={isGettingLocation}
-            className="px-3 py-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-            title="Gunakan lokasi saya"
-          >
-            {isGettingLocation ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
-            ) : (
-              <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            )}
-          </button>
         </div>
       )}
 
-      {/* Instructions - Only show when map is ready */}
+      {/* Search Bar */}
       {!isLoading && !error && (
         <div className="absolute bottom-3 left-3 right-3 z-10">
-          <div className="bg-white bg-opacity-90 rounded-lg px-3 py-2 text-xs text-gray-600 text-center">
-            Cari alamat lengkap Anda atau gunakan "Lokasi Saya" untuk mendapatkan koordinat yang tepat
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center">
+              <div className="flex-1 flex items-center px-4 py-3">
+                <svg className="w-5 h-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Cari alamat atau tempat..."
+                  className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400"
+                />
+              </div>
+              <button
+                onClick={handleSearch}
+                className="px-4 py-3 bg-[#d63384] text-white hover:bg-[#b02a5b] transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}

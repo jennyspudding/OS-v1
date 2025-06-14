@@ -1353,50 +1353,187 @@ function ExpressCustomerInfoContent() {
 
           {/* Map Section */}
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Pilih Lokasi Pengiriman yang Tepat</h3>
-            <p className="text-xs text-gray-500 mb-3">Gunakan peta untuk menentukan lokasi pengiriman yang akurat</p>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">📍 Tentukan Lokasi Pengiriman Anda</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              <strong>Langkah 1:</strong> Klik atau seret pin merah di peta untuk menentukan lokasi yang tepat
+            </p>
             
-            {selectedLocation && (
-              <div className="text-xs text-gray-600 bg-[#f8d7da] border border-[#f5c2c7] rounded-lg p-3 mb-3">
-                <div className="font-medium text-[#d63384] mb-1">Lokasi Terpilih:</div>
-                <div className="mb-2">{selectedLocation.address}</div>
-                <div className="text-[#d63384] text-xs">
-                  Koordinat: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+            {/* Map Container with Enhanced Visual Cues */}
+            <div className="relative rounded-lg overflow-hidden border-2 border-dashed border-[#d63384] bg-gradient-to-br from-[#fdf2f8] to-[#fce7f3] p-1">
+              {!selectedLocation && (
+                <div className="absolute inset-0 bg-[#d63384]/5 z-10 flex items-center justify-center pointer-events-none">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#d63384]/20 max-w-xs text-center">
+                    <div className="text-2xl mb-2">⚡📍</div>
+                    <div className="text-sm font-medium text-[#d63384] mb-1">Klik di peta untuk memilih lokasi</div>
+                    <div className="text-xs text-gray-600">Express delivery - lokasi harus tepat!</div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="rounded-lg overflow-hidden">
+                <SimpleGoogleMap
+                  key={mapKey}
+                  initialCenter={mapCenter || { lat: -6.2088, lng: 106.8456 }}
+                  onLocationSelect={handleLocationSelect}
+                  height="350px"
+                  regionBounds={{
+                    province: formData.province,
+                    city: formData.city,
+                    district: formData.district
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Location Status and Address Input */}
+            {selectedLocation ? (
+              <div className="mt-4 space-y-4">
+                {/* Success State - Location Selected */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-green-800 mb-1">✅ Lokasi Express Berhasil Dipilih!</div>
+                      <div className="text-sm text-green-700 mb-2">{selectedLocation.address}</div>
+                      <div className="text-xs text-green-600">
+                        Koordinat: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2 - Address Refinement */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-blue-600 font-medium">📝 Langkah 2:</span>
+                      <span className="text-sm text-blue-800">Perbaiki alamat jika diperlukan</span>
+                    </div>
+                    <p className="text-xs text-blue-600">
+                      Alamat sudah terisi otomatis berdasarkan pin yang Anda pilih. Untuk express delivery, pastikan alamat sangat detail dan akurat.
+                    </p>
+                  </div>
+                  
+                  <label className="block text-sm text-gray-700 font-medium mb-2">
+                    Alamat Lengkap <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={alamatLengkap}
+                    onChange={(e) => setAlamatLengkap(e.target.value)}
+                    className="w-full p-3 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 text-base"
+                    placeholder="Contoh: Jl. Sudirman No. 123, Gedung ABC Lt. 5, dekat Starbucks, sebelah Bank BCA..."
+                    rows={3}
+                    required
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-blue-600">
+                      ⚡ Express delivery membutuhkan alamat yang sangat detail untuk pengiriman cepat
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedLocation(null);
+                      setAlamatLengkap('');
+                      setMapKey(prev => prev + 1);
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Pilih Ulang Lokasi
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const newLocation = {
+                              lat: position.coords.latitude,
+                              lng: position.coords.longitude,
+                              address: 'Lokasi saat ini'
+                            };
+                            setSelectedLocation(newLocation);
+                            setMapCenter(newLocation);
+                            setMapKey(prev => prev + 1);
+                          },
+                          (error) => {
+                            alert('Tidak dapat mengakses lokasi Anda. Silakan pilih lokasi secara manual di peta.');
+                          }
+                        );
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-[#d63384] text-white rounded-lg hover:bg-[#b02a5b] transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Gunakan Lokasi Saya
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Waiting State - No Location Selected */
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-medium text-amber-800 mb-1">⚡ Menunggu Anda memilih lokasi express</div>
+                    <div className="text-sm text-amber-700">
+                      Silakan klik di peta atau seret pin merah untuk menentukan lokasi pengiriman express yang tepat
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Quick Location Button */}
+                <div className="mt-3 pt-3 border-t border-amber-200">
+                  <button
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const newLocation = {
+                              lat: position.coords.latitude,
+                              lng: position.coords.longitude,
+                              address: 'Lokasi saat ini'
+                            };
+                            setSelectedLocation(newLocation);
+                            setMapCenter(newLocation);
+                            setMapKey(prev => prev + 1);
+                          },
+                          (error) => {
+                            alert('Tidak dapat mengakses lokasi Anda. Silakan pilih lokasi secara manual di peta.');
+                          }
+                        );
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors text-sm font-medium flex items-center justify-center gap-2 border border-amber-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    ⚡ Gunakan Lokasi Saya Sekarang
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* Alamat Lengkap Field */}
-            {selectedLocation && (
-              <div className="mb-3">
-                <label className="block text-sm text-gray-600 mb-2">Alamat Lengkap <span className="text-red-500">*</span></label>
-                <textarea
-                  value={alamatLengkap}
-                  onChange={(e) => setAlamatLengkap(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d63384] focus:border-transparent bg-white text-gray-900 text-base"
-                  placeholder="Edit alamat lengkap jika diperlukan..."
-                  rows={3}
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Alamat ini akan digunakan untuk pengiriman. Anda dapat mengedit jika diperlukan.
-                </p>
-              </div>
-            )}
-            
-            <div className="rounded-lg overflow-hidden">
-              <SimpleGoogleMap
-                key={mapKey}
-                initialCenter={mapCenter || { lat: -6.2088, lng: 106.8456 }}
-                onLocationSelect={handleLocationSelect}
-                height="300px"
-                regionBounds={{
-                  province: formData.province,
-                  city: formData.city,
-                  district: formData.district
-                }}
-              />
-            </div>
           </div>
 
         </div>
@@ -1950,4 +2087,4 @@ export default function ExpressCustomerInfoPage() {
       <ExpressCustomerInfoContent />
     </Suspense>
   );
-} 
+}
