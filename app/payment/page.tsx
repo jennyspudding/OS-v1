@@ -177,8 +177,8 @@ export default function PaymentPage() {
       } catch (telegramError) {
         console.error('❌ Failed to send Telegram notification:', telegramError);
         console.error('❌ Telegram error details:', {
-          message: telegramError?.message,
-          stack: telegramError?.stack,
+          message: telegramError instanceof Error ? telegramError.message : String(telegramError),
+          stack: telegramError instanceof Error ? telegramError.stack : undefined,
           orderId: orderId
         });
         // Don't fail the order if Telegram fails

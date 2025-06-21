@@ -238,7 +238,8 @@ function ExpressPaymentContent() {
       } catch (telegramError) {
         console.error('❌ Failed to send EXPRESS Telegram notification:', telegramError);
         console.error('❌ EXPRESS Telegram error details:', {
-          message: (telegramError as Error)?.message,
+          message: telegramError instanceof Error ? telegramError.message : String(telegramError),
+          stack: telegramError instanceof Error ? telegramError.stack : undefined,
           orderId: orderId
         });
         // Don't fail the order if Telegram fails
