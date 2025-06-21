@@ -880,6 +880,24 @@ function ExpressCustomerInfoContent() {
   const saveCompleteOrderData = () => {
     if (typeof window === 'undefined') return null;
     try {
+      // Fix timezone issue: ensure requestedDateTime is properly formatted with timezone
+      let formattedRequestedDateTime = requestedDateTime;
+      if (requestedDateTime) {
+        // Create a date object from the local datetime string
+        const localDate = new Date(requestedDateTime);
+        // Convert to WIB timezone (UTC+7) by creating a new date with proper timezone
+        const wibOffset = 7 * 60; // WIB is UTC+7
+        const utcTime = localDate.getTime() + (localDate.getTimezoneOffset() * 60000);
+        const wibTime = new Date(utcTime + (wibOffset * 60000));
+        formattedRequestedDateTime = wibTime.toISOString();
+        console.log('🕐 EXPRESS Time conversion:', {
+          original: requestedDateTime,
+          localDate: localDate.toString(),
+          wibFormatted: formattedRequestedDateTime,
+          wibLocal: wibTime.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+        });
+      }
+      
       const completeOrderData = {
         formData,
         useSamePhone,
@@ -889,7 +907,7 @@ function ExpressCustomerInfoContent() {
         deliveryQuotation,
         isMockQuotation,
         quotationError,
-        requestedDateTime,
+        requestedDateTime: formattedRequestedDateTime,
         vehicleType,
         useTollRoad, // Add useTollRoad to the order data
         cart: {

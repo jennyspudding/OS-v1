@@ -122,6 +122,68 @@ export default function PaymentPage() {
       const finalOrderData = { ...orderData, uuid: orderUuid, paymentProofUrl };
       localStorage.setItem('completeOrderData', JSON.stringify(finalOrderData));
       
+      // 📱 SEND TELEGRAM NOTIFICATION
+      try {
+        console.log('🔄 Preparing Telegram notification for order:', orderId);
+        console.log('📊 Order data for Telegram:', {
+          orderId,
+          customerName: orderData.formData?.name,
+          hasItems: !!orderData.cart?.items?.length,
+          cartTotal: orderData.cartTotal,
+          deliveryTotal: orderData.deliveryTotal
+        });
+        
+        const telegramOrderData = {
+          orderId: orderId,
+          customerName: orderData.formData?.name || 'Unknown',
+          customerPhone: orderData.formData?.phone || 'Unknown',
+          recipientName: orderData.formData?.recipientName || orderData.formData?.name || 'Unknown',
+          recipientPhone: orderData.formData?.recipientPhone || orderData.formData?.phone || 'Unknown',
+          deliveryAddress: orderData.alamatLengkap || 'Unknown',
+          deliveryDateTime: orderData.requestedDateTime || new Date().toISOString(),
+          items: orderData.cart?.items?.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            addOns: item.addOns || []
+          })) || [],
+          cartTotal: orderData.cartTotal || 0,
+          deliveryTotal: orderData.deliveryTotal || 0,
+          discount: orderData.discount || 0,
+          promoCode: orderData.promoCode || undefined,
+          grandTotal: orderData.grandTotal || 0,
+          orderType: 'normal',
+          vehicleType: orderData.vehicleType,
+          paymentMethod: 'Bank Transfer BCA'
+        };
+        
+        console.log('📱 Sending Telegram notification via API...');
+        const response = await fetch('/api/send-telegram-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(telegramOrderData)
+        });
+        
+        const result = await response.json();
+        console.log('✅ Telegram API response:', result);
+        
+        if (result.success) {
+          console.log('🎉 Telegram notification sent successfully for order:', orderId);
+        } else {
+          console.warn('⚠️ Telegram notification failed:', result.message);
+        }
+      } catch (telegramError) {
+        console.error('❌ Failed to send Telegram notification:', telegramError);
+        console.error('❌ Telegram error details:', {
+          message: telegramError?.message,
+          stack: telegramError?.stack,
+          orderId: orderId
+        });
+        // Don't fail the order if Telegram fails
+      }
+      
       // 🛒 CLEAR CART IMMEDIATELY AFTER SUCCESSFUL ORDER SUBMISSION
       // Use the context method to properly clear cart state
       clearCart();

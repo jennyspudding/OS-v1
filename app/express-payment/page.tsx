@@ -182,6 +182,68 @@ function ExpressPaymentContent() {
       };
       localStorage.setItem('completeExpressOrderData', JSON.stringify(finalOrderData));
       
+      // 📱 SEND TELEGRAM NOTIFICATION FOR EXPRESS ORDER
+      try {
+        console.log('🔄 Preparing EXPRESS Telegram notification for order:', orderId);
+        console.log('📊 Express order data for Telegram:', {
+          orderId,
+          customerName: orderData.formData?.name,
+          hasExpressItems: expressItems.length,
+          cartTotal: orderData.cartTotal,
+          deliveryTotal: orderData.deliveryTotal,
+          discountAmount: discountAmount
+        });
+        
+        const telegramOrderData = {
+          orderId: orderId,
+          customerName: orderData.formData?.name || 'Unknown',
+          customerPhone: orderData.formData?.phone || 'Unknown',
+          recipientName: orderData.formData?.recipientName || orderData.formData?.name || 'Unknown',
+          recipientPhone: orderData.formData?.recipientPhone || orderData.formData?.phone || 'Unknown',
+          deliveryAddress: orderData.alamatLengkap || 'Unknown',
+          deliveryDateTime: orderData.requestedDateTime || new Date().toISOString(),
+          items: expressItems.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            addOns: item.addOns || []
+          })),
+          cartTotal: orderData.cartTotal || 0,
+          deliveryTotal: orderData.deliveryTotal || 0,
+          discount: (orderData.discount || 0) + discountAmount, // Include both promo and storewide discount
+          promoCode: orderData.promoCode || (isDiscountEligible ? 'Storewide 10%' : undefined),
+          grandTotal: finalOrderData.grandTotal,
+          orderType: 'express',
+          vehicleType: orderData.vehicleType,
+          paymentMethod: 'Bank Transfer BCA (Express)'
+        };
+        
+        console.log('📱 Sending EXPRESS Telegram notification via API...');
+        const response = await fetch('/api/send-telegram-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(telegramOrderData)
+        });
+        
+        const result = await response.json();
+        console.log('✅ EXPRESS Telegram API response:', result);
+        
+        if (result.success) {
+          console.log('🎉 EXPRESS Telegram notification sent successfully for order:', orderId);
+        } else {
+          console.warn('⚠️ EXPRESS Telegram notification failed:', result.message);
+        }
+      } catch (telegramError) {
+        console.error('❌ Failed to send EXPRESS Telegram notification:', telegramError);
+        console.error('❌ EXPRESS Telegram error details:', {
+          message: (telegramError as Error)?.message,
+          orderId: orderId
+        });
+        // Don't fail the order if Telegram fails
+      }
+      
       // Clear cart and storage (but keep order data for thank you page)
       clearCart();
       sessionStorage.removeItem('cart');
